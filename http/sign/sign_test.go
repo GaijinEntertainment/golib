@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"golib/http/sign"
+	"github.com/GaijinEntertainment/http/sign"
 )
 
 func TestEqual(t *testing.T) {
@@ -192,7 +192,7 @@ func TestParseSignature(t *testing.T) {
 		},
 		{
 			name:    "ok",
-			s:       "411111111111111110123456789ABCDEF",
+			s:       "411111111111111110123456789abcdef",
 			wantErr: false,
 		},
 	}
@@ -211,7 +211,7 @@ func TestParseSignature(t *testing.T) {
 			}
 
 			if tt.s != got.HexString() {
-				t.Errorf("ParseSignature() got = %v, want %v", got, tt.s)
+				t.Errorf("ParseSignature() got = %s, want %s", got.HexString(), tt.s)
 			}
 		})
 	}
