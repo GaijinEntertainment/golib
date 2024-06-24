@@ -1,4 +1,4 @@
-module github.com/GaijinEntertainment
+module github.com/GaijinEntertainment/golib
 
 go 1.22
 

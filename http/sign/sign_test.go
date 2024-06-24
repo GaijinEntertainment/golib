@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/GaijinEntertainment/http/sign"
+	"github.com/GaijinEntertainment/golib/http/sign"
 )
 
 func TestEqual(t *testing.T) {
