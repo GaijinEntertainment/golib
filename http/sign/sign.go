@@ -46,6 +46,14 @@ func NewSigner(v Version, timeStamp time.Time) *Signer {
 	return s
 }
 
+func (s *Signer) AddBytes(data []byte) {
+	_, _ = s.h.Write(data)
+}
+
+func (s *Signer) AddString(str string) {
+	_, _ = s.h.Write([]byte(str))
+}
+
 func (s *Signer) AddRequest(r *http.Request) error {
 	body, err := getBody(r)
 	if err != nil {
@@ -55,15 +63,15 @@ func (s *Signer) AddRequest(r *http.Request) error {
 	if s.Ver == V4 {
 		var delimiter = []byte{0}
 
-		_, _ = s.h.Write([]byte(r.Method))
-		_, _ = s.h.Write(delimiter)
-		_, _ = s.h.Write([]byte(r.Host))
-		_, _ = s.h.Write(delimiter)
-		_, _ = s.h.Write([]byte(r.RequestURI))
-		_, _ = s.h.Write(delimiter)
+		s.AddString(r.Method)
+		s.AddBytes(delimiter)
+		s.AddString(r.Host)
+		s.AddBytes(delimiter)
+		s.AddString(r.RequestURI)
+		s.AddBytes(delimiter)
 	}
 
-	_, _ = s.h.Write(body)
+	s.AddBytes(body)
 
 	return nil
 }
@@ -166,6 +174,21 @@ func (s Signature) Data() []byte {
 	}
 
 	return s[9:]
+}
+
+// HasRightTime checks if the signature was issued at the right time.
+// The signature is considered to be issued at the right time if the difference
+// between the signature time and the specified time is less than the specified precision.
+// The signature with zero time is always considered to be issued at the right time.
+func (s Signature) HasRightTime(t time.Time, precision time.Duration) bool {
+	ts := s.Time()
+	if ts.Unix() == 0 {
+		return true
+	}
+
+	dt := ts.Sub(t)
+
+	return dt >= -precision && dt <= precision
 }
 
 func (s Signature) HexString() string {
