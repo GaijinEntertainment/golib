@@ -224,7 +224,7 @@ func TestParseSignature(t *testing.T) {
 	assert.Equal(t, []byte{2, 3, 4, 5, 6}, s.Data())
 }
 
-func TestSignature_HasRightTime(t *testing.T) {
+func TestSignature_IssuedAt(t *testing.T) {
 	t.Parallel()
 
 	moment := time.Unix(1_000_000, 555_555)
@@ -233,19 +233,19 @@ func TestSignature_HasRightTime(t *testing.T) {
 
 	assert.False(
 		t,
-		sig.HasRightTime(moment, 0),
+		sig.IssuedAt(moment, 0),
 		"moment has nanoseconds but time in signature has a seconds precision",
 	)
 
-	assert.True(t, sig.HasRightTime(moment, time.Second))
-	assert.True(t, sig.HasRightTime(moment.Add(1*time.Second), 2*time.Second))
-	assert.True(t, sig.HasRightTime(moment.Add(-1*time.Second), 2*time.Second))
-	assert.False(t, sig.HasRightTime(moment.Add(-2*time.Second), 1*time.Second))
-	assert.False(t, sig.HasRightTime(moment.Add(2*time.Second), 1*time.Second))
+	assert.True(t, sig.IssuedAt(moment, time.Second))
+	assert.True(t, sig.IssuedAt(moment.Add(1*time.Second), 2*time.Second))
+	assert.True(t, sig.IssuedAt(moment.Add(-1*time.Second), 2*time.Second))
+	assert.False(t, sig.IssuedAt(moment.Add(-2*time.Second), 1*time.Second))
+	assert.False(t, sig.IssuedAt(moment.Add(2*time.Second), 1*time.Second))
 
 	sig = createSign(time.Unix(0, 0))
 
-	assert.True(t, sig.HasRightTime(moment, 0))
+	assert.True(t, sig.IssuedAt(moment, 0))
 }
 
 func createSign(moment time.Time) sign.Signature {

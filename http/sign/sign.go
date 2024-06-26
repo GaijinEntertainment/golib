@@ -176,11 +176,11 @@ func (s Signature) Data() []byte {
 	return s[9:]
 }
 
-// HasRightTime checks if the signature was issued at the right time.
-// The signature is considered to be issued at the right time if the difference
-// between the signature time and the specified time is less than the specified precision.
+// IssuedAt checks if the signature was issued at the specified time.
+// The signature is considered to be issued at the specified time if the difference
+// between the signature time and the target time is less than the leeway.
 // The signature with zero time is always considered to be issued at the right time.
-func (s Signature) HasRightTime(t time.Time, precision time.Duration) bool {
+func (s Signature) IssuedAt(t time.Time, leeway time.Duration) bool {
 	ts := s.Time()
 	if ts.Unix() == 0 {
 		return true
@@ -188,7 +188,7 @@ func (s Signature) HasRightTime(t time.Time, precision time.Duration) bool {
 
 	dt := ts.Sub(t)
 
-	return dt >= -precision && dt <= precision
+	return dt >= -leeway && dt <= leeway
 }
 
 func (s Signature) HexString() string {
