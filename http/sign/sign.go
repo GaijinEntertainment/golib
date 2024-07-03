@@ -2,9 +2,12 @@ package sign
 
 import (
 	"bytes"
+	"crypto"
+	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"hash"
 	"io"
@@ -47,11 +50,15 @@ func NewSigner(v Version, timeStamp time.Time) *Signer {
 }
 
 func (s *Signer) AddBytes(data []byte) {
+	if len(data) == 0 {
+		return
+	}
+
 	_, _ = s.h.Write(data)
 }
 
 func (s *Signer) AddString(str string) {
-	_, _ = s.h.Write([]byte(str))
+	s.AddBytes([]byte(str))
 }
 
 func (s *Signer) AddRequest(r *http.Request) error {
@@ -67,7 +74,9 @@ func (s *Signer) AddRequest(r *http.Request) error {
 		s.AddBytes(delimiter)
 		s.AddString(r.Host)
 		s.AddBytes(delimiter)
-		s.AddString(r.RequestURI)
+		s.AddString(r.URL.Path)
+		s.AddBytes(delimiter)
+		s.AddString(r.URL.RawQuery)
 		s.AddBytes(delimiter)
 	}
 
@@ -76,13 +85,23 @@ func (s *Signer) AddRequest(r *http.Request) error {
 	return nil
 }
 
-func (s *Signer) Sign() Signature {
-	data := make([]byte, s.h.Size()+8+1)
+func (s *Signer) Sum(b []byte) []byte {
+	return s.h.Sum(b)
+}
+
+func (s *Signer) Sign(pk *rsa.PrivateKey) (Signature, error) {
+	signature, err := rsa.SignPKCS1v15(nil, pk, crypto.SHA256, s.Sum(nil))
+	if err != nil {
+		return nil, fmt.Errorf("sign failed: %w", err)
+	}
+
+	data := make([]byte, hdrSize+len(signature))
 
 	data[0] = byte(s.Ver)
-	copy(data[1:], s.ts[:])
+	copy(data[timeOffset:], s.ts[:])
+	copy(data[signOffset:], signature)
 
-	return s.h.Sum(data)
+	return data, nil
 }
 
 func getBody(r *http.Request) ([]byte, error) {
@@ -96,23 +115,29 @@ func getBody(r *http.Request) ([]byte, error) {
 	return body, nil
 }
 
+const (
+	timeOffset = 1
+	signOffset = 9
+	hdrSize    = 1 + 8
+)
+
 type Signature []byte
 
 func ParseSignature(s string) (Signature, error) {
-	if len(s) < 1+8<<1 || len(s)%2 != 1 {
-		return nil, fmt.Errorf("invalid signature")
+	if len(s) < hdrSize || len(s)%2 != 1 {
+		return nil, errors.New("invalid signature")
 	}
 
 	v := Version(s[0] - '0')
 	if v < V2 || v > V4 {
-		return nil, fmt.Errorf("unsupported version: %d", v)
+		return nil, errors.New("unsupported signature version")
 	}
 
 	data := make([]byte, (len(s)-1)>>1+1)
 
 	data[0] = byte(v)
 
-	_, err := hex.Decode(data[1:], []byte(s[1:]))
+	_, err := hex.Decode(data[timeOffset:], []byte(s[timeOffset:]))
 	if err != nil {
 		return nil, fmt.Errorf("decode signature failed: %w", err)
 	}
@@ -123,7 +148,7 @@ func ParseSignature(s string) (Signature, error) {
 // Equal compares two signatures. Signatures are equal if they have
 // the same version, body and timestamps differ by no more than precision.
 func (s Signature) Equal(other Signature, precision time.Duration) bool {
-	if len(s) < 9 || len(other) < 9 || len(s) != len(other) {
+	if len(s) < hdrSize || len(other) < hdrSize || len(s) != len(other) {
 		return false
 	}
 
@@ -131,14 +156,11 @@ func (s Signature) Equal(other Signature, precision time.Duration) bool {
 		return false
 	}
 
-	if !slices.Equal(s[9:], other[9:]) {
+	if !slices.Equal(s[signOffset:], other[signOffset:]) {
 		return false
 	}
 
-	t1 := time.Unix(int64(binary.BigEndian.Uint64(s[1:9])), 0)
-	t2 := time.Unix(int64(binary.BigEndian.Uint64(other[1:9])), 0)
-
-	dt := t1.Sub(t2)
+	dt := s.Time().Sub(other.Time())
 
 	if dt < -precision || dt > precision {
 		return false
@@ -161,19 +183,19 @@ func (s Signature) Ver() Version {
 }
 
 func (s Signature) Time() time.Time {
-	if len(s) < 9 {
+	if len(s) < hdrSize {
 		return time.Time{}
 	}
 
-	return time.Unix(int64(binary.BigEndian.Uint64(s[1:9])), 0)
+	return time.Unix(int64(binary.BigEndian.Uint64(s[timeOffset:hdrSize])), 0)
 }
 
 func (s Signature) Data() []byte {
-	if len(s) < 9 {
+	if len(s) < hdrSize {
 		return nil
 	}
 
-	return s[9:]
+	return s[hdrSize:]
 }
 
 // IssuedAt checks if the signature was issued at the specified time.

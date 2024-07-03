@@ -1,6 +1,9 @@
 package sign_test
 
 import (
+	"crypto"
+	"crypto/rand"
+	"crypto/rsa"
 	"encoding/binary"
 	"testing"
 	"time"
@@ -248,10 +251,44 @@ func TestSignature_IssuedAt(t *testing.T) {
 	assert.True(t, sig.IssuedAt(moment, 0))
 }
 
+func TestSigner_Sign(t *testing.T) {
+	t.Parallel()
+
+	const msgSize = 1000
+
+	msg := make([]byte, msgSize)
+	assert.Equal(t, msgSize, mustOK(rand.Read(msg)))
+
+	key := mustOK(rsa.GenerateKey(rand.Reader, 2048))
+
+	signer := sign.NewSigner(sign.V4, time.Now())
+	signer.AddBytes(msg)
+
+	signature := mustOK(signer.Sign(key)).HexString()
+
+	s2 := mustOK(sign.ParseSignature(signature))
+
+	signer = sign.NewSigner(s2.Ver(), s2.Time())
+	signer.AddBytes(msg)
+
+	assert.NoError(t, rsa.VerifyPKCS1v15(&key.PublicKey, crypto.SHA256, signer.Sum(nil), s2.Data()))
+}
+
 func createSign(moment time.Time) sign.Signature {
 	s := sign.NewSigner(sign.V4, moment)
 
 	s.AddString("abc")
 
-	return s.Sign()
+	pk, _ := rsa.GenerateKey(rand.Reader, 2048)
+	signature, _ := s.Sign(pk)
+
+	return signature
+}
+
+func mustOK[T any](v T, err error) T {
+	if err != nil {
+		panic(err)
+	}
+
+	return v
 }
