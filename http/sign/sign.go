@@ -26,18 +26,18 @@ const (
 	V4
 )
 
-type Signer struct {
+type Digest struct {
 	Ver Version
 	ts  [8]byte
 	h   hash.Hash
 }
 
-func NewSigner(v Version, timeStamp time.Time) *Signer {
+func NewDigest(v Version, timeStamp time.Time) *Digest {
 	if v < V2 || v > V4 {
 		panic("unsupported version")
 	}
 
-	s := &Signer{
+	s := &Digest{
 		Ver: v,
 		h:   sha256.New(),
 	}
@@ -49,7 +49,7 @@ func NewSigner(v Version, timeStamp time.Time) *Signer {
 	return s
 }
 
-func (s *Signer) AddBytes(data []byte) {
+func (s *Digest) AddBytes(data []byte) {
 	if len(data) == 0 {
 		return
 	}
@@ -57,11 +57,11 @@ func (s *Signer) AddBytes(data []byte) {
 	_, _ = s.h.Write(data)
 }
 
-func (s *Signer) AddString(str string) {
+func (s *Digest) AddString(str string) {
 	s.AddBytes([]byte(str))
 }
 
-func (s *Signer) AddRequest(r *http.Request) error {
+func (s *Digest) AddRequest(r *http.Request) error {
 	body, err := getBody(r)
 	if err != nil {
 		return fmt.Errorf("read request body failed: %w", err)
@@ -85,11 +85,11 @@ func (s *Signer) AddRequest(r *http.Request) error {
 	return nil
 }
 
-func (s *Signer) Sum(b []byte) []byte {
+func (s *Digest) Sum(b []byte) []byte {
 	return s.h.Sum(b)
 }
 
-func (s *Signer) Sign(pk *rsa.PrivateKey) (Signature, error) {
+func (s *Digest) Sign(pk *rsa.PrivateKey) (Signature, error) {
 	signature, err := rsa.SignPKCS1v15(nil, pk, crypto.SHA256, s.Sum(nil))
 	if err != nil {
 		return nil, fmt.Errorf("sign failed: %w", err)

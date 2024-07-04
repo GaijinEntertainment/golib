@@ -251,7 +251,7 @@ func TestSignature_IssuedAt(t *testing.T) {
 	assert.True(t, sig.IssuedAt(moment, 0))
 }
 
-func TestSigner_Sign(t *testing.T) {
+func TestDigest_Sign(t *testing.T) {
 	t.Parallel()
 
 	const msgSize = 1000
@@ -261,21 +261,21 @@ func TestSigner_Sign(t *testing.T) {
 
 	key := mustOK(rsa.GenerateKey(rand.Reader, 2048))
 
-	signer := sign.NewSigner(sign.V4, time.Now())
-	signer.AddBytes(msg)
+	digest := sign.NewDigest(sign.V4, time.Now())
+	digest.AddBytes(msg)
 
-	signature := mustOK(signer.Sign(key)).HexString()
+	signature := mustOK(digest.Sign(key)).HexString()
 
 	s2 := mustOK(sign.ParseSignature(signature))
 
-	signer = sign.NewSigner(s2.Ver(), s2.Time())
-	signer.AddBytes(msg)
+	digest = sign.NewDigest(s2.Ver(), s2.Time())
+	digest.AddBytes(msg)
 
-	assert.NoError(t, rsa.VerifyPKCS1v15(&key.PublicKey, crypto.SHA256, signer.Sum(nil), s2.Data()))
+	assert.NoError(t, rsa.VerifyPKCS1v15(&key.PublicKey, crypto.SHA256, digest.Sum(nil), s2.Data()))
 }
 
 func createSign(moment time.Time) sign.Signature {
-	s := sign.NewSigner(sign.V4, moment)
+	s := sign.NewDigest(sign.V4, moment)
 
 	s.AddString("abc")
 
