@@ -89,8 +89,8 @@ func (s *Digest) Sum(b []byte) []byte {
 	return s.h.Sum(b)
 }
 
-func (s *Digest) Sign(pk *rsa.PrivateKey) (Signature, error) {
-	signature, err := rsa.SignPKCS1v15(nil, pk, crypto.SHA256, s.Sum(nil))
+func (s *Digest) Sign(signer Signer) (Signature, error) {
+	signature, err := signer.Sign(s.Sum(nil))
 	if err != nil {
 		return nil, fmt.Errorf("sign failed: %w", err)
 	}
@@ -201,7 +201,7 @@ func (s Signature) Data() []byte {
 // IssuedAt checks if the signature was issued at the specified time.
 // The signature is considered to be issued at the specified time if the difference
 // between the signature time and the target time is less than the leeway.
-// The signature with zero time is always considered to be issued at the right time.
+// The signature with zero time is always considered to be issued at the specified time.
 func (s Signature) IssuedAt(t time.Time, leeway time.Duration) bool {
 	ts := s.Time()
 	if ts.Unix() == 0 {
@@ -224,4 +224,14 @@ func (s Signature) HexString() string {
 	hex.Encode(data[1:], s[1:])
 
 	return string(data)
+}
+
+type Signer interface {
+	Sign(digest []byte) (Signature, error)
+}
+
+type RSASigner rsa.PrivateKey
+
+func (key *RSASigner) Sign(digest []byte) (Signature, error) {
+	return rsa.SignPKCS1v15(nil, (*rsa.PrivateKey)(key), crypto.SHA256, digest)
 }

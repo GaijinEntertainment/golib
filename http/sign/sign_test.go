@@ -259,7 +259,7 @@ func TestDigest_Sign(t *testing.T) {
 	msg := make([]byte, msgSize)
 	assert.Equal(t, msgSize, mustOK(rand.Read(msg)))
 
-	key := mustOK(rsa.GenerateKey(rand.Reader, 2048))
+	key := (*sign.RSASigner)(mustOK(rsa.GenerateKey(rand.Reader, 2048)))
 
 	digest := sign.NewDigest(sign.V4, time.Now())
 	digest.AddBytes(msg)
@@ -280,7 +280,7 @@ func createSign(moment time.Time) sign.Signature {
 	s.AddString("abc")
 
 	pk, _ := rsa.GenerateKey(rand.Reader, 2048)
-	signature, _ := s.Sign(pk)
+	signature, _ := s.Sign((*sign.RSASigner)(pk))
 
 	return signature
 }
