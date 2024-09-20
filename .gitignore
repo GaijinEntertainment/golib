@@ -1,0 +1,4 @@
+.idea/
+.vscode/
+development.env
+*.exe
