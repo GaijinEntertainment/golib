@@ -1,0 +1,125 @@
+###golangci-lint:version: 1.60
+run:
+  timeout: 30s
+  allow-parallel-runners: true
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+linters:
+  enable-all: true
+  disable:
+    - depguard
+    - gci
+    - godox
+    - gofmt
+    - gomnd # obsolete now, replaced by mnd
+    - gofumpt
+    - goheader
+    - goimports
+    - varnamelen
+    - nonamedreturns # we're using named returns quite often
+    - errname # naming is too strict and is not observed in many places
+    - importas # may be useful later, requires configuration
+    - misspell # we have IDE speller
+    - govet # invoked by the goland internally
+    - tagliatelle # it isn't very handy to have such linter in a monorepo with a lot of different coding standards
+    - nlreturn # there is wsl linter what implements the same checks
+    - lll # disabled in favor of revive
+    - funlen # disabled in favor of revive
+    - gocognit # disabled in favor of revive
+    - cyclop # disabled in favor of revive
+    - gocyclo # disabled in favor of revive
+    - tagalign # freakingly noisy linter
+    - whitespace # disabled in a favor of revive
+    - execinquery # deprecated
+    - exportloopref # deprecated
+
+linters-settings:
+  gomoddirectives:
+    replace-local: true
+
+  mnd:
+    ignored-functions:
+      - os\.(OpenFile|WriteFile|Chmod),p?flag\..*
+      - strconv\.(Format|Parse|Append).*
+
+  gosec:
+    config:
+      G306: "0666" # enable to create files with permissions 0666 (before umask) or lesser
+
+  forbidigo:
+    forbid:
+      - (?i)(^|\.)print(f|ln)?$ #forbidden: print, println, fmt.Print, fmt.Println, fmt.Printf
+
+  exhaustruct:
+    exclude:
+      - net/http\.Transport
+      - net/http\.Server
+      - net/http\.Client
+      - crypto/tls\.Config
+
+  wsl:
+    force-case-trailing-whitespace: 1
+    allow-trailing-comment: true
+    allow-separated-leading-comment: true
+
+  revive:
+    enable-all-rules: true
+    confidence: 0.8
+    rules:
+      - name: function-length
+        severity: warning
+        disabled: false
+        arguments: [ 50, 0 ]
+      - name: function-result-limit
+        severity: warning
+        disabled: false
+        arguments: [ 3 ]
+      - name: cognitive-complexity
+        severity: warning
+        disabled: false
+        arguments: [ 20 ]
+      - name: cyclomatic
+        severity: warning
+        disabled: false
+        arguments: [ 10 ]
+      - name: line-length-limit
+        severity: warning
+        disabled: false
+        arguments: [ 120 ]
+      - name: argument-limit
+        severity: warning
+        disabled: false
+        arguments: [ 6 ]
+      - name: unhandled-error
+        disabled: false
+        arguments:
+          - "bytes\\.Buffer\\.Write.*" # always returns nil error
+          - "strings\\.Builder\\.Write.*" # always returns nil error
+      # disabled rules
+      - name: comment-spacings # many false-positives
+        disabled: true
+      - name: unchecked-type-assertion # we use forcetypeassert for that
+        disabled: true
+      - name: max-public-structs # annoying and mostly useless linter
+        disabled: true
+      - name: banned-characters # we don't have banned chars
+        disabled: true
+      - name: file-header # we don't have file headers
+        disabled: true
+      - name: flag-parameter # extremely annoying linter, it is absolutely okay to have boolean args
+        disabled: true
+      - name: struct-tag # false-positive on tags implemented by other linters
+        disabled: true
+      - name: add-constant # dont have exclusions list
+        disabled: true
+      - name: empty-lines # it false-positives on one-liners
+        disabled: true
+      - name: range-val-in-closure # it's not actual with 1.22+ version of Golang
+        disabled: true
+
+  testifylint:
+    disable:
+      - require-error # too many FP. Usually we can decide correctly what ensurance level to use
