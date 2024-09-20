@@ -35,6 +35,7 @@ linters:
     - whitespace # disabled in a favor of revive
     - execinquery # deprecated
     - exportloopref # deprecated
+    - intrange # it is broken
 
 linters-settings:
   gomoddirectives:
