@@ -19,13 +19,13 @@ linters:
     - goheader
     - goimports
     - varnamelen
-    - nonamedreturns # we're using named returns quite often
+    - nonamedreturns # there is nothing wrong with named returns
     - errname # naming is too strict and is not observed in many places
     - importas # may be useful later, requires configuration
     - misspell # we have IDE speller
     - govet # invoked by the goland internally
     - tagliatelle # it isn't very handy to have such linter in a monorepo with a lot of different coding standards
-    - nlreturn # there is wsl linter what implements the same checks
+    - nlreturn # disabled in favor of wsl
     - lll # disabled in favor of revive
     - funlen # disabled in favor of revive
     - gocognit # disabled in favor of revive
@@ -36,6 +36,7 @@ linters:
     - execinquery # deprecated
     - exportloopref # deprecated
     - intrange # it is broken
+    - ireturn
 
 linters-settings:
   gomoddirectives:
