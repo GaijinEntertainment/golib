@@ -18,6 +18,11 @@ import (
 
 type Version int
 
+var (
+	ErrInvalidSignature              = errors.New("invalid signature")
+	ErrorUnsupportedSignatureVersion = errors.New("unsupported signature version")
+)
+
 const (
 	VErr Version = iota
 	_
@@ -40,11 +45,12 @@ func NewDigest(v Version, timeStamp time.Time) *Digest {
 	s := &Digest{
 		Ver: v,
 		h:   sha256.New(),
+		ts:  [8]byte{},
 	}
 
 	binary.BigEndian.PutUint64(s.ts[:], uint64(timeStamp.Unix()))
 
-	s.h.Write(s.ts[:])
+	_, _ = s.h.Write(s.ts[:])
 
 	return s
 }
@@ -107,7 +113,7 @@ func (s *Digest) Sign(signer Signer) (Signature, error) {
 func getBody(r *http.Request) ([]byte, error) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		return nil, err
+		return nil, err //nolint:wrapcheck
 	}
 
 	r.Body = io.NopCloser(bytes.NewReader(body))
@@ -125,12 +131,12 @@ type Signature []byte
 
 func ParseSignature(s string) (Signature, error) {
 	if len(s) < hdrSize || len(s)%2 != 1 {
-		return nil, errors.New("invalid signature")
+		return nil, ErrInvalidSignature
 	}
 
 	v := Version(s[0] - '0')
 	if v < V2 || v > V4 {
-		return nil, errors.New("unsupported signature version")
+		return nil, ErrorUnsupportedSignatureVersion
 	}
 
 	data := make([]byte, (len(s)-1)>>1+1)
@@ -187,7 +193,7 @@ func (s Signature) Time() time.Time {
 		return time.Time{}
 	}
 
-	return time.Unix(int64(binary.BigEndian.Uint64(s[timeOffset:hdrSize])), 0)
+	return time.Unix(int64(binary.BigEndian.Uint64(s[timeOffset:hdrSize])), 0) //nolint:gosec
 }
 
 func (s Signature) Data() []byte {
@@ -233,5 +239,5 @@ type Signer interface {
 type RSASigner rsa.PrivateKey
 
 func (key *RSASigner) Sign(digest []byte) (Signature, error) {
-	return rsa.SignPKCS1v15(nil, (*rsa.PrivateKey)(key), crypto.SHA256, digest)
+	return rsa.SignPKCS1v15(nil, (*rsa.PrivateKey)(key), crypto.SHA256, digest) //nolint:wrapcheck
 }

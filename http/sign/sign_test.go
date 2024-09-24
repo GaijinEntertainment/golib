@@ -21,6 +21,7 @@ func TestEqual(t *testing.T) {
 		b         sign.Signature
 		precision time.Duration
 	}
+
 	tests := []struct {
 		name  string
 		args  args
