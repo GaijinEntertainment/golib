@@ -185,6 +185,18 @@ func TestErr(t *testing.T) {
 		assert.Len(t, e1.Fields(), 1)
 		assert.Len(t, e2.Fields(), 2)
 	})
+
+	t.Run(".WithField()", func(t *testing.T) {
+		t.Parallel()
+
+		e1 := e.New("e1", fields.F("f1", "v1"))
+		e2 := e1.WithField("f2", "v2")
+
+		assert.NotSame(t, e1, e2)
+		assert.NotSame(t, e1.Fields(), e2.Fields())
+		assert.Len(t, e1.Fields(), 1)
+		assert.Len(t, e2.Fields(), 2)
+	})
 }
 
 type myErr struct {

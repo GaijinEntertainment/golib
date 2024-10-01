@@ -131,6 +131,11 @@ func (e *Err) WithFields(f ...fields.Field) *Err {
 	return ee
 }
 
+// WithField alike [Err.WithFields], but creates an error with single field added.
+func (e *Err) WithField(key string, val any) *Err {
+	return e.WithFields(fields.F(key, val))
+}
+
 // Fields returns fields of the error.
 func (e *Err) Fields() fields.List {
 	return e.fields
