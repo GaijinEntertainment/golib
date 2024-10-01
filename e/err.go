@@ -3,6 +3,7 @@ package e
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/GaijinEntertainment/golib/fields"
@@ -110,7 +111,41 @@ func Wrap(args ...any) *Err {
 	return err
 }
 
+// Clone creates a new instance of Err with the same error, wrapped error, and
+// cloned fields container.
+func (e *Err) Clone() *Err {
+	return &Err{
+		err:     e.err,
+		wrapped: e.wrapped,
+		fields:  slices.Clone(e.fields),
+	}
+}
+
+// WithFields creates a clone of initial error with fields added to it. Fields of
+// initial error will not be changed.
+func (e *Err) WithFields(f ...fields.Field) *Err {
+	ee := e.Clone()
+
+	ee.fields.Add(f...)
+
+	return ee
+}
+
+// Fields returns fields of the error.
+func (e *Err) Fields() fields.List {
+	return e.fields
+}
+
+// Reason returns reason string of the error without fields and wrapped errors.
+func (e *Err) Reason() string {
+	return e.err.Error()
+}
+
 // Wrap creates new instance of Err that wraps provided error with source one.
+//
+// Example:
+//
+//	e.New("e1").Wrap(errors.New("e2")) // e1: e2
 func (e *Err) Wrap(err error, f ...fields.Field) *Err {
 	return &Err{
 		err:     e,

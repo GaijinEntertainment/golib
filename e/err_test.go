@@ -141,6 +141,50 @@ func TestErr(t *testing.T) {
 		assert.ErrorAs(t, e3, &target)
 		assert.ErrorAs(t, e4, &target)
 	})
+
+	t.Run(".Reason()", func(t *testing.T) {
+		t.Parallel()
+
+		e1 := e.New("e1", fields.F("f1", "v1"))
+		e2 := e.NewFrom(e1, "e2", fields.F("f2", "v2"))
+
+		assert.Equal(t, "e1", e1.Reason())
+		assert.Equal(t, "e2", e2.Reason())
+	})
+
+	t.Run(".Fields()", func(t *testing.T) {
+		t.Parallel()
+
+		e1 := e.New("e1", fields.F("f1", "v1"))
+		e2 := e.NewFrom(e1, "e2", fields.F("f2", "v2"))
+
+		assert.Equal(t, fields.List{fields.F("f1", "v1")}, e1.Fields())
+		assert.Equal(t, fields.List{fields.F("f2", "v2")}, e2.Fields())
+	})
+
+	t.Run(".Clone()", func(t *testing.T) {
+		t.Parallel()
+
+		e1 := e.New("e1", fields.F("f1", "v1"))
+		e2 := e1.Clone()
+
+		assert.NotSame(t, e1, e2)
+		assert.Equal(t, e1.Error(), e2.Error())
+		assert.NotSame(t, e1.Fields(), e2.Fields())
+		assert.ElementsMatch(t, e1.Fields(), e2.Fields())
+	})
+
+	t.Run(".WithFields()", func(t *testing.T) {
+		t.Parallel()
+
+		e1 := e.New("e1", fields.F("f1", "v1"))
+		e2 := e1.WithFields(fields.F("f2", "v2"))
+
+		assert.NotSame(t, e1, e2)
+		assert.NotSame(t, e1.Fields(), e2.Fields())
+		assert.Len(t, e1.Fields(), 1)
+		assert.Len(t, e2.Fields(), 2)
+	})
 }
 
 type myErr struct {
