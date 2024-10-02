@@ -44,12 +44,12 @@ func TestErr(t *testing.T) {
 			},
 			{
 				name:     "wrapped error",
-				in:       e.NewFrom(errors.New("wrapped"), "error"), //nolint:err113
+				in:       e.NewFrom("error", errors.New("wrapped")), //nolint:err113
 				expected: "error: wrapped",
 			},
 			{
 				name:     "wrapped error with fields",
-				in:       e.NewFrom(e.New("wrapped", fields.F("f1", "v1")), "error", fields.F("f2", "v2")),
+				in:       e.NewFrom("error", e.New("wrapped", fields.F("f1", "v1")), fields.F("f2", "v2")),
 				expected: "error (f2=v2): wrapped (f1=v1)",
 			},
 			{
@@ -68,8 +68,8 @@ func TestErr(t *testing.T) {
 		t.Parallel()
 
 		e1 := e.New("e1")
-		e2 := e.NewFrom(e1, "e2")
-		e3 := e.NewFrom(e2, "e3")
+		e2 := e.NewFrom("e2", e1)
+		e3 := e.NewFrom("e3", e2)
 
 		assert.Equal(t, "e3: e2: e1", e3.Error())
 		assert.Same(t, e2, e3.Unwrap())
@@ -92,8 +92,8 @@ func TestErr(t *testing.T) {
 		t.Parallel()
 
 		e1 := e.New("e1")
-		e2 := e.NewFrom(e1, "e2")
-		e3 := e.NewFrom(e2, "e3")
+		e2 := e.NewFrom("e2", e1)
+		e3 := e.NewFrom("e3", e2)
 
 		assert.Same(t, e2, e3.Unwrap())
 		assert.Same(t, e1, e2.Unwrap())
@@ -105,9 +105,9 @@ func TestErr(t *testing.T) {
 
 		var (
 			e0       = errors.New("e0") //nolint:err113
-			e1 error = e.NewFrom(os.ErrNotExist, "e1")
+			e1 error = e.NewFrom("e1", os.ErrNotExist)
 			e2 error = e.From(e0)
-			e3 error = e.NewFrom(e1, "e3")
+			e3 error = e.NewFrom("e3", e1)
 			e4       = e.From(e0)
 		)
 
@@ -129,7 +129,7 @@ func TestErr(t *testing.T) {
 			e0 error = &myErr{"e0"}
 			e1       = e.New("e1")
 			e2 error = e.From(e0)
-			e3 error = e.NewFrom(e2, "e3")
+			e3 error = e.NewFrom("e3", e2)
 			e4       = e1.Wrap(e3)
 		)
 
@@ -146,7 +146,7 @@ func TestErr(t *testing.T) {
 		t.Parallel()
 
 		e1 := e.New("e1", fields.F("f1", "v1"))
-		e2 := e.NewFrom(e1, "e2", fields.F("f2", "v2"))
+		e2 := e.NewFrom("e2", e1, fields.F("f2", "v2"))
 
 		assert.Equal(t, "e1", e1.Reason())
 		assert.Equal(t, "e2", e2.Reason())
@@ -156,7 +156,7 @@ func TestErr(t *testing.T) {
 		t.Parallel()
 
 		e1 := e.New("e1", fields.F("f1", "v1"))
-		e2 := e.NewFrom(e1, "e2", fields.F("f2", "v2"))
+		e2 := e.NewFrom("e2", e1, fields.F("f2", "v2"))
 
 		assert.Equal(t, fields.List{fields.F("f1", "v1")}, e1.Fields())
 		assert.Equal(t, fields.List{fields.F("f2", "v2")}, e2.Fields())
@@ -252,7 +252,7 @@ func TestWrap(t *testing.T) {
 		},
 		{
 			name:     "multiple wrapped errors",
-			in:       []any{e.NewFrom(e.New("e1"), "e2"), e.NewFrom(e.New("e3"), "e4")},
+			in:       []any{e.NewFrom("e2", e.New("e1")), e.NewFrom("e4", e.New("e3"))},
 			expected: "e2: e1: e4: e3",
 		},
 	}

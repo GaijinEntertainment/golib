@@ -17,7 +17,7 @@ import (
 //	u = must.OK(url.Parse("example.com"))
 func OK[T any](v T, err error) T { //nolint:ireturn
 	if err != nil {
-		panic(e.NewFrom(err, "no error assurance failed"))
+		panic(e.NewFrom("no error assurance failed", err))
 	}
 
 	return v

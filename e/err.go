@@ -25,7 +25,7 @@ func New(reason string, f ...fields.Field) *Err {
 }
 
 // NewFrom creates new instance of Err that wraps origin error.
-func NewFrom(origin error, reason string, f ...fields.Field) *Err {
+func NewFrom(reason string, origin error, f ...fields.Field) *Err {
 	return &Err{
 		err:     errors.New(reason), //nolint:err113
 		wrapped: origin,

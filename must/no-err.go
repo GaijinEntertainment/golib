@@ -17,6 +17,6 @@ import (
 //	must.OK(json.Unmarshal([]byte(`["totally", "valid", "data"]`), &data))
 func NoErr(err error) {
 	if err != nil {
-		panic(e.NewFrom(err, "OK assurance failed"))
+		panic(e.NewFrom("OK assurance failed", err))
 	}
 }
