@@ -1,6 +1,8 @@
 package e_test
 
 import (
+	"errors"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -42,7 +44,7 @@ func TestErr(t *testing.T) {
 			},
 			{
 				name:     "wrapped error",
-				in:       e.NewFrom(e.New("wrapped"), "error"),
+				in:       e.NewFrom(errors.New("wrapped"), "error"), //nolint:err113
 				expected: "error: wrapped",
 			},
 			{
@@ -78,13 +80,75 @@ func TestErr(t *testing.T) {
 		t.Parallel()
 
 		e1 := e.New("e1", fields.F("f1", "v1"))
-		e2 := e.New("e2")
+		e2 := e.New("e2", fields.F("f2", "v2"))
 
 		assert.NotSame(t, e1, e1.Wrap(e2))
 		assert.NotSame(t, e2, e1.Wrap(e2))
-		assert.Equal(t, "e1 (f1=v1): e2", e1.Wrap(e2).Error())
-		assert.Equal(t, "e1 (f1=v1) (f3=v3): e2", e1.Wrap(e2, fields.F("f3", "v3")).Error())
+		assert.Equal(t, "e1 (f1=v1): e2 (f2=v2)", e1.Wrap(e2).Error())
+		assert.Equal(t, "e1 (f1=v1) (f3=v3): e2 (f2=v2)", e1.Wrap(e2, fields.F("f3", "v3")).Error())
 	})
+
+	t.Run(".Unwrap()", func(t *testing.T) {
+		t.Parallel()
+
+		e1 := e.New("e1")
+		e2 := e.NewFrom(e1, "e2")
+		e3 := e.NewFrom(e2, "e3")
+
+		assert.Same(t, e2, e3.Unwrap())
+		assert.Same(t, e1, e2.Unwrap())
+		assert.NoError(t, e1.Unwrap())
+	})
+
+	t.Run(".Is()", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			e0       = errors.New("e0") //nolint:err113
+			e1 error = e.NewFrom(os.ErrNotExist, "e1")
+			e2 error = e.From(e0)
+			e3 error = e.NewFrom(e1, "e3")
+			e4       = e.From(e0)
+		)
+
+		assert.ErrorIs(t, e1, e1) //nolint:testifylint
+		assert.NotErrorIs(t, e1, e0)
+
+		assert.ErrorIs(t, e2, e0)
+
+		assert.ErrorIs(t, e3, e1)
+		assert.ErrorIs(t, e3, os.ErrNotExist)
+
+		assert.NotErrorIs(t, e4, e2)
+	})
+
+	t.Run(".As()", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			e0 error = &myErr{"e0"}
+			e1       = e.New("e1")
+			e2 error = e.From(e0)
+			e3 error = e.NewFrom(e2, "e3")
+			e4       = e1.Wrap(e3)
+		)
+
+		var target *myErr
+
+		assert.False(t, errors.As(e1, &target))
+
+		assert.ErrorAs(t, e2, &target)
+		assert.ErrorAs(t, e3, &target)
+		assert.ErrorAs(t, e4, &target)
+	})
+}
+
+type myErr struct {
+	err string
+}
+
+func (err *myErr) Error() string {
+	return err.err
 }
 
 func TestWrap(t *testing.T) {

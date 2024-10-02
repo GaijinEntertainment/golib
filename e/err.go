@@ -119,18 +119,33 @@ func (e *Err) Wrap(err error, f ...fields.Field) *Err {
 	}
 }
 
+// Unwrap returns wrapped error. Returns nil in case there is no wrapper error.
 func (e *Err) Unwrap() error {
 	return e.wrapped
 }
 
+// Is reports whether any error in the chain matches the target error.
+//
+// This method implemented only to satisfy errors.Is interface, for checking
+// errors use [errors.Is] instead.
 func (e *Err) Is(tgt error) bool {
-	if tgt == e { //nolint:err113
-		return true
-	}
-
-	if ee, ok := tgt.(*Err); ok && e.err == ee.err { //nolint:err113
-		return true
-	}
-
 	return errors.Is(e.err, tgt) || errors.Is(e.wrapped, tgt)
+}
+
+// As finds the first error in err's tree that matches target, and if one is
+// found, sets target to that error value and returns true. Otherwise, it returns
+// false.
+//
+// This method implemented only to satisfy errors.Is interface, for checking
+// errors use [errors.Is] instead.
+func (e *Err) As(target any) bool {
+	if e.err != nil && errors.As(e.err, target) {
+		return true
+	}
+
+	if e.wrapped != nil && errors.As(e.wrapped, target) {
+		return true
+	}
+
+	return false
 }
