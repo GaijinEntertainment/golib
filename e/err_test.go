@@ -57,6 +57,11 @@ func TestErr(t *testing.T) {
 				in:       e.Wrap("e1", nil, "e2"),
 				expected: "e1: <nil>(<nil>): e2",
 			},
+			{
+				name:     "from external error with fields",
+				in:       e.From(errors.New("error"), fields.F("key", "value")), //nolint:err113
+				expected: "error (key=value)",
+			},
 		}
 
 		for _, tc := range tt {
@@ -120,6 +125,13 @@ func TestErr(t *testing.T) {
 		assert.ErrorIs(t, e3, os.ErrNotExist)
 
 		assert.NotErrorIs(t, e4, e2)
+		assert.NotErrorIs(t, e4.WithField("f1", "v1"), e4.WithField("f1", "v1")) //nolint:testifylint
+
+		var (
+			e5 error = e.NewFrom("e5", e4.WithField("f4", "v4")) // e5: e0 (f4=v4)
+		)
+
+		assert.NotErrorIs(t, e5, e4.WithField("f4", "v4"))
 	})
 
 	t.Run(".As()", func(t *testing.T) {

@@ -34,11 +34,11 @@ func NewFrom(reason string, origin error, f ...fields.Field) *Err {
 }
 
 // From transforms existing error to Err.
-func From(origin error) *Err {
+func From(origin error, f ...fields.Field) *Err {
 	return &Err{
 		err:     origin,
 		wrapped: nil,
-		fields:  nil,
+		fields:  f,
 	}
 }
 
