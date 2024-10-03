@@ -2,7 +2,6 @@ package e
 
 import (
 	"errors"
-	"fmt"
 	"slices"
 	"strings"
 
@@ -10,15 +9,16 @@ import (
 )
 
 type Err struct {
-	err     error
-	wrapped error
-	fields  fields.List
+	reason          string
+	origin, wrapped error
+	fields          fields.List
 }
 
 // New creates new instance of Err.
 func New(reason string, f ...fields.Field) *Err {
 	return &Err{
-		err:     errors.New(reason), //nolint:err113
+		reason:  reason,
+		origin:  nil,
 		wrapped: nil,
 		fields:  f,
 	}
@@ -27,21 +27,26 @@ func New(reason string, f ...fields.Field) *Err {
 // NewFrom creates new instance of Err that wraps origin error.
 func NewFrom(reason string, origin error, f ...fields.Field) *Err {
 	return &Err{
-		err:     errors.New(reason), //nolint:err113
+		reason:  reason,
+		origin:  nil,
 		wrapped: origin,
 		fields:  f,
 	}
 }
 
-// From transforms existing error to Err.
+// From transforms existing error to Err. It is not wrapping operation - unwrap
+// will not return origin error. Passing nil to this function will result with
+// empty error.
 func From(origin error, f ...fields.Field) *Err {
 	return &Err{
-		err:     origin,
+		reason:  "",
+		origin:  origin,
 		wrapped: nil,
 		fields:  f,
 	}
 }
 
+// Error returns string representation of the error.
 func (e *Err) Error() string {
 	b := &strings.Builder{}
 	writeTo(b, e)
@@ -50,24 +55,34 @@ func (e *Err) Error() string {
 }
 
 func writeTo(b *strings.Builder, err error) {
-	if b.Len() > 0 {
-		b.WriteString(": ")
-	}
-
 	ee, ok := err.(*Err) //nolint:errorlint
 	if !ok {
+		if b.Len() > 0 {
+			b.WriteString(": ")
+		}
+
 		b.WriteString(err.Error())
+
 		return
 	}
 
-	if ee == nil || ee.err == nil {
-		b.WriteString("nil")
+	if str := errString(ee); str != "" {
+		if b.Len() > 0 {
+			b.WriteString(": ")
+		}
+
+		b.WriteString(str)
+	}
+
+	if ee == nil {
 		return
 	}
 
-	b.WriteString(ee.err.Error())
+	if ee.origin != nil {
+		writeTo(b, ee.origin)
+	}
 
-	if ee.fields != nil {
+	if len(ee.fields) > 0 {
 		b.WriteRune(' ')
 		ee.fields.WriteTo(b)
 	}
@@ -77,29 +92,33 @@ func writeTo(b *strings.Builder, err error) {
 	}
 }
 
-// Wrap wraps provided errors into a single Err in order. Strings will be
-// constructed to errors using [New]. In case of non-error and non-string values,
-// it will be converted to a string using fmt.Sprintf("%#v").
+func errString(e *Err) string {
+	if e == nil {
+		return "(*e.Err)(nil)"
+	}
+
+	if e.reason != "" {
+		return e.reason
+	}
+
+	if e.origin == nil {
+		return "(*e.Err)(empty)"
+	}
+
+	return ""
+}
+
+// Wrap provided errors into each other in order, resulting with singular error.
+// Passed errors will be converted to [Err] using [From] function.
+//
+// If no errors provided, (*e.Err)(nil) will be returned.
 //
 // Example:
 //
-//	e.Wrap(e.New("e1", fields.F("f1", "v1")), errors.New("e2"), "e3") // e1 (f1=v1): e2: e3
-func Wrap(args ...any) *Err {
-	var err *Err
-
+//	e.Wrap(errors.New("e1"), errors.New("e2"), errors.New("e3")) // e1: e2: e3
+func Wrap(args ...error) (err *Err) {
 	for i := len(args) - 1; i >= 0; i-- {
-		var er *Err
-
-		switch v := args[i].(type) {
-		case error:
-			er = From(v)
-
-		case string:
-			er = New(v)
-
-		default:
-			er = New(fmt.Sprintf("%T(%v)", v, v))
-		}
+		er := From(args[i])
 
 		if err != nil {
 			er.wrapped = err
@@ -115,7 +134,8 @@ func Wrap(args ...any) *Err {
 // cloned fields container.
 func (e *Err) Clone() *Err {
 	return &Err{
-		err:     e.err,
+		reason:  e.reason,
+		origin:  e.origin,
 		wrapped: e.wrapped,
 		fields:  slices.Clone(e.fields),
 	}
@@ -143,7 +163,11 @@ func (e *Err) Fields() fields.List {
 
 // Reason returns reason string of the error without fields and wrapped errors.
 func (e *Err) Reason() string {
-	return e.err.Error()
+	if e.reason == "" {
+		return e.origin.Error()
+	}
+
+	return e.reason
 }
 
 // Wrap creates new instance of Err that wraps provided error with source one.
@@ -153,39 +177,34 @@ func (e *Err) Reason() string {
 //	e.New("e1").Wrap(errors.New("e2")) // e1: e2
 func (e *Err) Wrap(err error, f ...fields.Field) *Err {
 	return &Err{
-		err:     e,
+		reason:  "",
+		origin:  e,
 		wrapped: err,
 		fields:  f,
 	}
 }
 
-// Unwrap returns wrapped error. Returns nil in case there is no wrapper error.
+// Unwrap implemented only for purposes of compatibility with [errors.Unwrap].
+//
+// Deprecated: use [errors.Unwrap] instead.
 func (e *Err) Unwrap() error {
 	return e.wrapped
 }
 
-// Is reports whether any error in the chain matches the target error.
+// Is implemented only for purposes of compatibility with [errors.Is]. It only
+// checks error's origin. Check of wrapped errors performed by [errors.Is]
+// itself.
 //
-// This method implemented only to satisfy errors.Is interface, for checking
-// errors use [errors.Is] instead.
-func (e *Err) Is(tgt error) bool {
-	return errors.Is(e.err, tgt) || errors.Is(e.wrapped, tgt)
+// Deprecated: use [errors.Is] instead.
+func (e *Err) Is(err error) bool {
+	return errors.Is(e.origin, err)
 }
 
-// As finds the first error in err's tree that matches target, and if one is
-// found, sets target to that error value and returns true. Otherwise, it returns
-// false.
+// As implemented only for purposes of compatibility with [errors.As]. It only
+// checks error's origin. Check of wrapped errors performed by [errors.As]
+// itself.
 //
-// This method implemented only to satisfy errors.Is interface, for checking
-// errors use [errors.Is] instead.
+// Deprecated: use [errors.As] instead.
 func (e *Err) As(target any) bool {
-	if e.err != nil && errors.As(e.err, target) {
-		return true
-	}
-
-	if e.wrapped != nil && errors.As(e.wrapped, target) {
-		return true
-	}
-
-	return false
+	return errors.As(e.origin, target)
 }

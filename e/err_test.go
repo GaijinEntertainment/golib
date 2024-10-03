@@ -25,12 +25,12 @@ func TestErr(t *testing.T) {
 			{
 				name:     "nil",
 				in:       nil,
-				expected: "nil",
+				expected: "(*e.Err)(nil)",
 			},
 			{
 				name:     "empty",
 				in:       &e.Err{},
-				expected: "nil",
+				expected: "(*e.Err)(empty)",
 			},
 			{
 				name:     "simple",
@@ -43,8 +43,9 @@ func TestErr(t *testing.T) {
 				expected: "reason (key=value)",
 			},
 			{
-				name:     "wrapped error",
-				in:       e.NewFrom("error", errors.New("wrapped")), //nolint:err113
+				name: "wrapped error",
+				//nolint:err113
+				in:       e.NewFrom("error", errors.New("wrapped")),
 				expected: "error: wrapped",
 			},
 			{
@@ -53,32 +54,27 @@ func TestErr(t *testing.T) {
 				expected: "error (f2=v2): wrapped (f1=v1)",
 			},
 			{
-				name:     "nil error in the middle",
-				in:       e.Wrap("e1", nil, "e2"),
-				expected: "e1: <nil>(<nil>): e2",
+				name: "nil error in the middle",
+				//nolint:err113
+				in:       e.Wrap(errors.New("e1"), nil, e.New("e2")),
+				expected: "e1: (*e.Err)(empty): e2",
 			},
 			{
-				name:     "from external error with fields",
-				in:       e.From(errors.New("error"), fields.F("key", "value")), //nolint:err113
+				name: "from external error with fields",
+				//nolint:err113
+				in:       e.From(errors.New("error"), fields.F("key", "value")),
 				expected: "error (key=value)",
+			},
+			{
+				name:     "empty with fields",
+				in:       (&e.Err{}).WithField("foo", "bar"),
+				expected: "(*e.Err)(empty) (foo=bar)",
 			},
 		}
 
 		for _, tc := range tt {
 			assert.Equal(t, tc.expected, tc.in.Error(), tc.name)
 		}
-	})
-
-	t.Run("Unwrap()", func(t *testing.T) {
-		t.Parallel()
-
-		e1 := e.New("e1")
-		e2 := e.NewFrom("e2", e1)
-		e3 := e.NewFrom("e3", e2)
-
-		assert.Equal(t, "e3: e2: e1", e3.Error())
-		assert.Same(t, e2, e3.Unwrap())
-		assert.Same(t, e1, e2.Unwrap())
 	})
 
 	t.Run(".Wrap()", func(t *testing.T) {
@@ -89,20 +85,9 @@ func TestErr(t *testing.T) {
 
 		assert.NotSame(t, e1, e1.Wrap(e2))
 		assert.NotSame(t, e2, e1.Wrap(e2))
+		assert.Same(t, e2, errors.Unwrap(e1.Wrap(e2)))
 		assert.Equal(t, "e1 (f1=v1): e2 (f2=v2)", e1.Wrap(e2).Error())
 		assert.Equal(t, "e1 (f1=v1) (f3=v3): e2 (f2=v2)", e1.Wrap(e2, fields.F("f3", "v3")).Error())
-	})
-
-	t.Run(".Unwrap()", func(t *testing.T) {
-		t.Parallel()
-
-		e1 := e.New("e1")
-		e2 := e.NewFrom("e2", e1)
-		e3 := e.NewFrom("e3", e2)
-
-		assert.Same(t, e2, e3.Unwrap())
-		assert.Same(t, e1, e2.Unwrap())
-		assert.NoError(t, e1.Unwrap())
 	})
 
 	t.Run(".Is()", func(t *testing.T) {
@@ -224,52 +209,73 @@ func TestWrap(t *testing.T) {
 
 	tt := []struct {
 		name     string
-		in       []any
+		in       []error
 		expected string
 	}{
 		{
-			name:     "empty",
+			name:     "no errors",
 			in:       nil,
-			expected: "nil",
+			expected: "(*e.Err)(nil)",
 		},
 		{
-			name:     "string",
-			in:       []any{"error"},
-			expected: "error",
+			name:     "nil error",
+			in:       []error{nil},
+			expected: "(*e.Err)(empty)",
+		},
+		{
+			name:     "empty error",
+			in:       []error{&e.Err{}},
+			expected: "(*e.Err)(empty)",
 		},
 		{
 			name:     "error",
-			in:       []any{e.New("error")},
+			in:       []error{e.New("error")},
 			expected: "error",
 		},
 		{
 			name:     "e error",
-			in:       []any{e.New("e1")},
+			in:       []error{e.New("e1")},
 			expected: "e1",
 		},
 		{
-			name:     "int32",
-			in:       []any{int32(42)},
-			expected: "int32(42)",
-		},
-		{
-			name:     "multiple error",
-			in:       []any{"e1", "e2", "e3"},
+			name: "multiple errors",
+			//nolint:err113
+			in:       []error{errors.New("e1"), errors.New("e2"), errors.New("e3")},
 			expected: "e1: e2: e3",
 		},
 		{
-			name:     "multiple errors with fields",
-			in:       []any{e.New("e1", fields.F("f1", "v1")), "e2", "e3"},
+			name: "multiple errors with fields",
+			//nolint:err113
+			in:       []error{e.New("e1", fields.F("f1", "v1")), errors.New("e2"), errors.New("e3")},
 			expected: "e1 (f1=v1): e2: e3",
 		},
 		{
 			name:     "multiple wrapped errors",
-			in:       []any{e.NewFrom("e2", e.New("e1")), e.NewFrom("e4", e.New("e3"))},
+			in:       []error{e.NewFrom("e2", e.New("e1")), e.NewFrom("e4", e.New("e3"))},
 			expected: "e2: e1: e4: e3",
+		},
+		{
+			name: "nil in chain",
+			//nolint:err113
+			in:       []error{errors.New("e1"), nil, errors.New("e3")},
+			expected: "e1: (*e.Err)(empty): e3",
 		},
 	}
 
 	for _, tc := range tt {
 		assert.Equal(t, tc.expected, e.Wrap(tc.in...).Error(), tc.name)
 	}
+}
+
+func TestUnwrap(t *testing.T) {
+	t.Parallel()
+
+	e1 := e.New("e1")
+	e2 := e.NewFrom("e2", e1)
+	e3 := e.NewFrom("e3", e2)
+
+	assert.Equal(t, "e3: e2: e1", e3.Error())
+	assert.Same(t, e2, errors.Unwrap(e3))
+	assert.Same(t, e1, errors.Unwrap(e2))
+	assert.NoError(t, errors.Unwrap(e1))
 }
