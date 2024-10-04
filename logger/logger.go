@@ -151,3 +151,23 @@ func (l Logger) WithName(name string) Logger {
 func (l Logger) Flush() error {
 	return l.adapter.Flush() //nolint:wrapcheck
 }
+
+// NewNop creates a new logger that does nothing.
+func NewNop() Logger {
+	return Logger{
+		adapter:  NopAdapter{},
+		maxLevel: DefaultLogLevel,
+	}
+}
+
+// IsNop returns true if the logger's adapter is a [NopAdapter].
+func (l Logger) IsNop() bool {
+	_, ok := l.adapter.(NopAdapter)
+
+	return ok
+}
+
+// IsZero returns true if the logger is a zero-value structure.
+func (l Logger) IsZero() bool {
+	return l.adapter == nil && l.maxLevel == 0
+}
