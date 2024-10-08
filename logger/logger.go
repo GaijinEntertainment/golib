@@ -24,13 +24,16 @@ type Logger struct {
 	// In case log-level is higher than defined maximum, it won't be passed to
 	// adapter.
 	maxLevel int
+
+	adapter Adapter
 }
 
 // New creates new [Logger]. Consult [Logger] docs for more info about
 // parameters.
-func New(maxLevel int) Logger {
+func New(adapter Adapter, maxLevel int) Logger {
 	return Logger{
 		maxLevel: maxLevel,
+		adapter:  adapter,
 	}
 }
 
@@ -109,27 +112,35 @@ func (l Logger) TraceE(msg string, err error, fs ...fields.Field) {
 }
 
 // Log logs a message with given log-level, optional error and fields.
-func (l Logger) Log(level int, _ string, _ error, _ ...fields.Field) {
+func (l Logger) Log(level int, msg string, err error, fs ...fields.Field) {
 	if level > l.maxLevel {
 		return
 	}
+
+	l.adapter.Log(level, msg, err, fs...)
 }
 
 // WithFields returns a new child-logger with the given fields attached to it.
-func (l Logger) WithFields(_ ...fields.Field) Logger {
-	// ToDo: implement attaching fields to the logger
+func (l Logger) WithFields(fs ...fields.Field) Logger {
+	//revive:disable-next-line:modifies-value-receiver
+	l.adapter = l.adapter.WithFields(fs...)
+
 	return l
 }
 
 // WithStackTrace returns a new child-logger with the stack trace attached to it.
 func (l Logger) WithStackTrace(_ uint) Logger {
-	// ToDo: implement attaching actual stack trace to the logger
+	//revive:disable-next-line:modifies-value-receiver
+	l.adapter = l.adapter.WithStackTrace("")
+
 	return l
 }
 
 // WithName returns a new child-logger with the given name assigned to it.
-func (l Logger) WithName(_ string) Logger {
-	// ToDo: implement assigning a name to the logger
+func (l Logger) WithName(name string) Logger {
+	//revive:disable-next-line:modifies-value-receiver
+	l.adapter = l.adapter.WithName(name)
+
 	return l
 }
 
@@ -137,6 +148,6 @@ func (l Logger) WithName(_ string) Logger {
 // write logs to the output.
 //
 // It is the application's responsibility to call [Logger.Flush] before exiting.
-func (Logger) Flush() error {
-	return nil
+func (l Logger) Flush() error {
+	return l.adapter.Flush() //nolint:wrapcheck
 }
