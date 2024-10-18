@@ -24,10 +24,17 @@ func init() {
 
 const LoggerNameKey = "logger"
 
+// Adapter of logrus logger for [logrus.Entry].
+//
+// This adapter guarantees support of stock [logrus.Level].
 type Adapter struct {
 	lgr *logrus.Entry
 }
 
+// New creates new logging adapter using provided [logrus.Entry].
+//
+// Note, that by the contract of [logger.Logger], adapter should not perform
+// level-filtering internally - it is done by [logger.Logger] itself.
 func New(lgr *logrus.Entry) *Adapter {
 	return &Adapter{
 		lgr: lgr,
