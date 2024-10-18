@@ -24,9 +24,9 @@ func init() {
 
 const LoggerNameKey = "logger"
 
-// Adapter of logrus logger for [logrus.Entry].
+// Adapter of logrus logger for [logger.Logger].
 //
-// This adapter guarantees support of stock [logrus.Level].
+// This adapter guarantees support of stock logger's levels.
 type Adapter struct {
 	lgr *logrus.Entry
 }
