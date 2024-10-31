@@ -1,3 +1,9 @@
+# mark vendored folders in order to hide them on GH
+go.mod              linguist-generated
+go.sum              linguist-generated
+/_tests             linguist-vendored
+vendor/*            linguist-vendored
+
 /.github            export-ignore
 /_tests             export-ignore
 /vendor             export-ignore
