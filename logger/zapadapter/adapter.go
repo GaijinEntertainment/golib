@@ -3,8 +3,8 @@ package zapadapter
 import (
 	"go.uber.org/zap"
 
-	"github.com/GaijinEntertainment/golib/fields"
-	"github.com/GaijinEntertainment/golib/logger"
+	"dev.gaijin.net/go/golib/fields"
+	"dev.gaijin.net/go/golib/logger"
 )
 
 type zapF func(*zap.Logger, string, ...zap.Field)

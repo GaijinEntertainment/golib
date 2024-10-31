@@ -11,9 +11,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/GaijinEntertainment/golib/fields"
-	"github.com/GaijinEntertainment/golib/logger"
-	"github.com/GaijinEntertainment/golib/logger/slogadapter"
+	"dev.gaijin.net/go/golib/fields"
+	"dev.gaijin.net/go/golib/logger"
+	"dev.gaijin.net/go/golib/logger/slogadapter"
 )
 
 type bufferEntry struct {

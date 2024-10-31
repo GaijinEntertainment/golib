@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/GaijinEntertainment/golib/must"
+	"dev.gaijin.net/go/golib/must"
 )
 
 func TestNoErr(t *testing.T) {

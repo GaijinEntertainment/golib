@@ -4,12 +4,12 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/GaijinEntertainment/golib/fields"
+	"dev.gaijin.net/go/golib/fields"
 )
 
 // goos: windows
 // goarch: amd64
-// pkg: github.com/GaijinEntertainment/golib/fields
+// pkg: dev.gaijin.net/go/golib/fields
 // cpu: AMD Ryzen 9 7950X 16-Core Processor
 // Benchmark_List
 //

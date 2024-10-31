@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/GaijinEntertainment/golib/fields"
+	"dev.gaijin.net/go/golib/fields"
 
 	"github.com/stretchr/testify/require"
 )

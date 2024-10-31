@@ -3,7 +3,7 @@ package logger
 import (
 	"math"
 
-	"github.com/GaijinEntertainment/golib/fields"
+	"dev.gaijin.net/go/golib/fields"
 )
 
 const (

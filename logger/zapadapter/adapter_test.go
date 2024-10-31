@@ -11,9 +11,9 @@ import (
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
 
-	"github.com/GaijinEntertainment/golib/fields"
-	"github.com/GaijinEntertainment/golib/logger"
-	"github.com/GaijinEntertainment/golib/logger/zapadapter"
+	"dev.gaijin.net/go/golib/fields"
+	"dev.gaijin.net/go/golib/logger"
+	"dev.gaijin.net/go/golib/logger/zapadapter"
 )
 
 type discardingWriter struct{}

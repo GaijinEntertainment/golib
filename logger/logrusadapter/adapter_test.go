@@ -9,9 +9,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/GaijinEntertainment/golib/fields"
-	"github.com/GaijinEntertainment/golib/logger"
-	"github.com/GaijinEntertainment/golib/logger/logrusadapter"
+	"dev.gaijin.net/go/golib/fields"
+	"dev.gaijin.net/go/golib/logger"
+	"dev.gaijin.net/go/golib/logger/logrusadapter"
 )
 
 type discardingWriter struct{}

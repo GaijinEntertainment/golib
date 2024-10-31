@@ -4,8 +4,8 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/GaijinEntertainment/golib/fields"
-	"github.com/GaijinEntertainment/golib/logger"
+	"dev.gaijin.net/go/golib/fields"
+	"dev.gaijin.net/go/golib/logger"
 )
 
 // Adapter of slog logger for [logger.Logger].

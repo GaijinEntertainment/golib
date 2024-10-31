@@ -1,4 +1,4 @@
-module github.com/GaijinEntertainment/golib
+module dev.gaijin.net/go/golib
 
 go 1.23
 
