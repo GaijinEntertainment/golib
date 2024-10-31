@@ -1,7 +1,7 @@
 package must
 
 import (
-	"dev.gaijin.net/go/golib/e"
+	"dev.gaijin.team/go/golib/e"
 )
 
 // NoErr is a wrapper function to simplify code, in situations where developer is sure

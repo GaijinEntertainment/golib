@@ -10,7 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"dev.gaijin.net/go/golib/http/sign"
+	"dev.gaijin.team/go/golib/http/sign"
 )
 
 func TestEqual(t *testing.T) {

@@ -5,7 +5,7 @@ import (
 	"slices"
 	"strings"
 
-	"dev.gaijin.net/go/golib/fields"
+	"dev.gaijin.team/go/golib/fields"
 )
 
 type Err struct {

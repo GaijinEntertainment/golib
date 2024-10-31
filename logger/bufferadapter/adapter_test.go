@@ -6,9 +6,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"dev.gaijin.net/go/golib/e"
-	"dev.gaijin.net/go/golib/fields"
-	"dev.gaijin.net/go/golib/logger/bufferadapter"
+	"dev.gaijin.team/go/golib/e"
+	"dev.gaijin.team/go/golib/fields"
+	"dev.gaijin.team/go/golib/logger/bufferadapter"
 )
 
 func TestAdapter(t *testing.T) {

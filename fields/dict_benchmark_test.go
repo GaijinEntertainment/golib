@@ -6,12 +6,12 @@ import (
 	"strconv"
 	"testing"
 
-	"dev.gaijin.net/go/golib/fields"
+	"dev.gaijin.team/go/golib/fields"
 )
 
 // goos: windows
 // goarch: amd64
-// pkg: dev.gaijin.net/go/golib/fields
+// pkg: dev.gaijin.team/go/golib/fields
 // cpu: AMD Ryzen 9 7950X 16-Core Processor
 // Benchmark_Dict
 //

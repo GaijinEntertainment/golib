@@ -7,8 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"dev.gaijin.net/go/golib/e"
-	"dev.gaijin.net/go/golib/fields"
+	"dev.gaijin.team/go/golib/e"
+	"dev.gaijin.team/go/golib/fields"
 )
 
 func TestErr(t *testing.T) {

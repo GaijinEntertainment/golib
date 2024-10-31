@@ -1,4 +1,4 @@
-module dev.gaijin.net/go/golib
+module dev.gaijin.team/go/golib
 
 go 1.23
 

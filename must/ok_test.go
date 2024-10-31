@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"dev.gaijin.net/go/golib/must"
+	"dev.gaijin.team/go/golib/must"
 )
 
 func TestOK(t *testing.T) {

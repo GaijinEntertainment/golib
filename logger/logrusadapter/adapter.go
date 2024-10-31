@@ -3,8 +3,8 @@ package logrusadapter
 import (
 	"github.com/sirupsen/logrus"
 
-	"dev.gaijin.net/go/golib/fields"
-	"dev.gaijin.net/go/golib/logger"
+	"dev.gaijin.team/go/golib/fields"
+	"dev.gaijin.team/go/golib/logger"
 )
 
 type logrusF func(*logrus.Entry, ...any)

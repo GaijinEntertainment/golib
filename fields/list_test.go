@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"dev.gaijin.net/go/golib/fields"
+	"dev.gaijin.team/go/golib/fields"
 )
 
 func TestList(t *testing.T) {

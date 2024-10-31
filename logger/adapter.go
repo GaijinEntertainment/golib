@@ -1,7 +1,7 @@
 package logger
 
 import (
-	"dev.gaijin.net/go/golib/fields"
+	"dev.gaijin.team/go/golib/fields"
 )
 
 // Adapter is an interface that allows to encapsulate any logger inside [Logger].

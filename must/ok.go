@@ -1,7 +1,7 @@
 package must
 
 import (
-	"dev.gaijin.net/go/golib/e"
+	"dev.gaijin.team/go/golib/e"
 )
 
 // OK is a wrapper function to simplify code, in situations where developer is sure

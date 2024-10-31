@@ -3,8 +3,8 @@ package bufferadapter
 import (
 	"slices"
 
-	"dev.gaijin.net/go/golib/fields"
-	"dev.gaijin.net/go/golib/logger"
+	"dev.gaijin.team/go/golib/fields"
+	"dev.gaijin.team/go/golib/logger"
 )
 
 type LogEntry struct {
