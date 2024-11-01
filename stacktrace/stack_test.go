@@ -29,10 +29,12 @@ func TestStack(t *testing.T) {
 	t.Run("AddCaller", func(t *testing.T) {
 		t.Parallel()
 
-		s := &stacktrace.Stack{}
+		s := stacktrace.NewStack(0)
 		s.AddCaller()
 
 		takeOddCallers(s, 5)
+
+		require.Equal(t, 3, s.Len())
 
 		frames := make([]runtime.Frame, 3)
 		for i, f := range s.FramesIter() {
@@ -53,7 +55,7 @@ func TestStack(t *testing.T) {
 	t.Run("String", func(t *testing.T) {
 		t.Parallel()
 
-		s := &stacktrace.Stack{}
+		s := stacktrace.NewStack(0)
 		s.AddCaller()
 
 		takeOddCallers(s, 5)
@@ -68,7 +70,7 @@ func TestStack(t *testing.T) {
 		assert.True(t, strings.HasPrefix(lines[1], "\t"))
 		assert.True(t, strings.HasSuffix(lines[1], "stacktrace/stack_test.go:23"))
 		assert.True(t, strings.HasPrefix(lines[3], "\t"))
-		assert.True(t, strings.HasSuffix(lines[3], "stacktrace/stack_test.go:59"))
+		assert.True(t, strings.HasSuffix(lines[3], "stacktrace/stack_test.go:61"))
 		assert.True(t, strings.HasPrefix(lines[5], "\t"))
 	})
 }

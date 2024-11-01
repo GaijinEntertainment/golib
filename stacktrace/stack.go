@@ -11,6 +11,12 @@ type Stack struct {
 	frames []runtime.Frame `exhaustruct:"optional"`
 }
 
+func NewStack(initialSize int) *Stack {
+	return &Stack{
+		frames: make([]runtime.Frame, 0, initialSize),
+	}
+}
+
 // AddCaller adds the caller's frame to the stack.
 func (s *Stack) AddCaller() {
 	pcs := make([]uintptr, 1)
@@ -18,11 +24,16 @@ func (s *Stack) AddCaller() {
 
 	frame, _ := runtime.CallersFrames(pcs).Next()
 
-	s.frames = append(s.frames, frame)
+	s.AddFrame(frame)
 }
 
 func (s *Stack) AddFrame(f runtime.Frame) {
 	s.frames = append(s.frames, f)
+}
+
+// Len returns amount of frames contained in stack.
+func (s *Stack) Len() int {
+	return len(s.frames)
 }
 
 // FramesIter returns an iterator over the frames in the stack.
