@@ -31,12 +31,6 @@
 // In other words, arbitrary fields are always enclosed in parentheses, and the
 // wrapped error is separated with a colon and a space.
 //
-// [Wrap] function can be used to wrap multiple errors at once.
-//
-// Example:
-//
-//	err := e.Wrap(errors.New("error"), e.New("wrapped"), errors.New("deep")) // error: wrapped: deep
-//
 // Package does not provide any methods to modify existing errors, as it is
 // considered error-prone. Instead, any public method of the package that returns
 // an error - returns a new instance.

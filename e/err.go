@@ -108,28 +108,6 @@ func errString(e *Err) string {
 	return ""
 }
 
-// Wrap provided errors into each other in order, resulting with singular error.
-// Passed errors will be converted to [Err] using [From] function.
-//
-// If no errors provided, (*e.Err)(nil) will be returned.
-//
-// Example:
-//
-//	e.Wrap(errors.New("e1"), errors.New("e2"), errors.New("e3")) // e1: e2: e3
-func Wrap(args ...error) (err *Err) {
-	for i := len(args) - 1; i >= 0; i-- {
-		er := From(args[i])
-
-		if err != nil {
-			er.wrapped = err
-		}
-
-		err = er
-	}
-
-	return err
-}
-
 // Clone creates a new instance of Err with the same error, wrapped error, and
 // cloned fields container.
 func (e *Err) Clone() *Err {

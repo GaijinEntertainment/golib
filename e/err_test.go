@@ -54,15 +54,13 @@ func TestErr(t *testing.T) {
 				expected: "error (f2=v2): wrapped (f1=v1)",
 			},
 			{
-				name: "nil error in the middle",
-				//nolint:err113
-				in:       e.Wrap(errors.New("e1"), nil, e.New("e2")),
-				expected: "e1: (*e.Err)(empty): e2",
+				name:     "nil error in the middle",
+				in:       e.New("e1").Wrap((*e.Err)(nil)).Wrap(e.New("e2")),
+				expected: "e1: (*e.Err)(nil): e2",
 			},
 			{
-				name: "from external error with fields",
-				//nolint:err113
-				in:       e.From(errors.New("error"), fields.F("key", "value")),
+				name:     "from external error with fields",
+				in:       e.From(errors.New("error"), fields.F("key", "value")), //nolint:err113
 				expected: "error (key=value)",
 			},
 			{
@@ -202,69 +200,6 @@ type myErr struct {
 
 func (err *myErr) Error() string {
 	return err.err
-}
-
-func TestWrap(t *testing.T) {
-	t.Parallel()
-
-	tt := []struct {
-		name     string
-		in       []error
-		expected string
-	}{
-		{
-			name:     "no errors",
-			in:       nil,
-			expected: "(*e.Err)(nil)",
-		},
-		{
-			name:     "nil error",
-			in:       []error{nil},
-			expected: "(*e.Err)(empty)",
-		},
-		{
-			name:     "empty error",
-			in:       []error{&e.Err{}},
-			expected: "(*e.Err)(empty)",
-		},
-		{
-			name:     "error",
-			in:       []error{e.New("error")},
-			expected: "error",
-		},
-		{
-			name:     "e error",
-			in:       []error{e.New("e1")},
-			expected: "e1",
-		},
-		{
-			name: "multiple errors",
-			//nolint:err113
-			in:       []error{errors.New("e1"), errors.New("e2"), errors.New("e3")},
-			expected: "e1: e2: e3",
-		},
-		{
-			name: "multiple errors with fields",
-			//nolint:err113
-			in:       []error{e.New("e1", fields.F("f1", "v1")), errors.New("e2"), errors.New("e3")},
-			expected: "e1 (f1=v1): e2: e3",
-		},
-		{
-			name:     "multiple wrapped errors",
-			in:       []error{e.NewFrom("e2", e.New("e1")), e.NewFrom("e4", e.New("e3"))},
-			expected: "e2: e1: e4: e3",
-		},
-		{
-			name: "nil in chain",
-			//nolint:err113
-			in:       []error{errors.New("e1"), nil, errors.New("e3")},
-			expected: "e1: (*e.Err)(empty): e3",
-		},
-	}
-
-	for _, tc := range tt {
-		assert.Equal(t, tc.expected, e.Wrap(tc.in...).Error(), tc.name)
-	}
 }
 
 func TestUnwrap(t *testing.T) {
