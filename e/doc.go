@@ -39,4 +39,8 @@
 // methods are intended for internal use. These methods are marked as deprecated
 // to avoid confusion and improve developer experience. Consider using the
 // corresponding methods of the [errors] package instead.
+//
+// To log a specific error, the package provides a convenience method [Log]. This
+// method creates a log entry from the specified error if it is not nil. It is
+// designed to be compatible with our logger abstraction - logger.Logger.
 package e
