@@ -57,7 +57,7 @@ func TestLog(t *testing.T) {
 			LoggerName: "",
 			Level:      logger.LevelDebug,
 			Msg:        e3.Reason(),
-			Error:      e3.Unwrap(),
+			Error:      e1,
 			Fields:     e3.Fields(),
 		},
 		{

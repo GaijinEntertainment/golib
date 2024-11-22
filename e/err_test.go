@@ -14,6 +14,50 @@ import (
 func TestErr(t *testing.T) {
 	t.Parallel()
 
+	t.Run("general logic", func(t *testing.T) {
+		t.Parallel()
+
+		// general usecases
+		var (
+			errNotFound       = errors.New("not found") //nolint:err113
+			errInvalidRequest = e.New("invalid request")
+			errInvalidID      = errInvalidRequest.Wrap(errors.New("invalid id"))     //nolint:err113
+			errInvalidAction  = errInvalidRequest.Wrap(errors.New("invalid action")) //nolint:err113
+		)
+
+		e1 := errInvalidAction.WithField("foo", "bar")
+		e2 := errInvalidAction.WithField("foo", "bar")
+
+		assert.NotErrorIs(t, errInvalidRequest, errNotFound)
+
+		// they're both children of errInvalidRequest, therefore should pass error.Is
+		// check.
+		assert.ErrorIs(t, errInvalidID, errInvalidRequest)
+		assert.ErrorIs(t, errInvalidAction, errInvalidRequest)
+
+		// but they should fail if checked against each other
+		assert.NotErrorIs(t, errInvalidID, errInvalidAction)
+		assert.NotErrorIs(t, errInvalidAction, errInvalidID)
+
+		// and errInvalidRequest should vail if tested against its children
+		assert.NotErrorIs(t, errInvalidRequest, errInvalidID)
+		assert.NotErrorIs(t, errInvalidRequest, errInvalidAction)
+
+		// two instances with fields are not the same errors
+		assert.NotSame(t, e1, e2)
+
+		// but they're both instances of same error, therefore pass checks against
+		// parents
+		assert.ErrorIs(t, e1, errInvalidRequest)
+		assert.ErrorIs(t, e2, errInvalidRequest)
+		assert.ErrorIs(t, e1, errInvalidAction)
+		assert.ErrorIs(t, e2, errInvalidAction)
+
+		// but not against sibling of parent
+		assert.NotErrorIs(t, e1, errInvalidID)
+		assert.NotErrorIs(t, e2, errInvalidID)
+	})
+
 	t.Run(".Error()", func(t *testing.T) {
 		t.Parallel()
 
@@ -83,7 +127,7 @@ func TestErr(t *testing.T) {
 
 		assert.NotSame(t, e1, e1.Wrap(e2))
 		assert.NotSame(t, e2, e1.Wrap(e2))
-		assert.Same(t, e2, errors.Unwrap(e1.Wrap(e2)))
+		assert.NoError (t, errors.Unwrap(e1.Wrap(e2)), "errors unwrap returns nil")
 		assert.Equal(t, "e1 (f1=v1): e2 (f2=v2)", e1.Wrap(e2).Error())
 		assert.Equal(t, "e1 (f1=v1) (f3=v3): e2 (f2=v2)", e1.Wrap(e2, fields.F("f3", "v3")).Error())
 	})
@@ -176,9 +220,12 @@ func TestErr(t *testing.T) {
 		e2 := e1.WithFields(fields.F("f2", "v2"))
 
 		assert.NotSame(t, e1, e2)
+		assert.ErrorIs(t, e2, e1, "child error passes errors.Is for parent")
+
 		assert.NotSame(t, e1.Fields(), e2.Fields())
 		assert.Len(t, e1.Fields(), 1)
-		assert.Len(t, e2.Fields(), 2)
+		assert.Len(t, e2.Fields(), 1)
+		assert.Equal(t, "e1 (f1=v1) (f2=v2)", e2.Error())
 	})
 
 	t.Run(".WithField()", func(t *testing.T) {
@@ -188,9 +235,12 @@ func TestErr(t *testing.T) {
 		e2 := e1.WithField("f2", "v2")
 
 		assert.NotSame(t, e1, e2)
+		assert.ErrorIs(t, e2, e1, "child error passes errors.Is for parent")
+
 		assert.NotSame(t, e1.Fields(), e2.Fields())
 		assert.Len(t, e1.Fields(), 1)
-		assert.Len(t, e2.Fields(), 2)
+		assert.Len(t, e2.Fields(), 1)
+		assert.Equal(t, "e1 (f1=v1) (f2=v2)", e2.Error())
 	})
 }
 
@@ -200,17 +250,4 @@ type myErr struct {
 
 func (err *myErr) Error() string {
 	return err.err
-}
-
-func TestUnwrap(t *testing.T) {
-	t.Parallel()
-
-	e1 := e.New("e1")
-	e2 := e.NewFrom("e2", e1)
-	e3 := e.NewFrom("e3", e2)
-
-	assert.Equal(t, "e3: e2: e1", e3.Error())
-	assert.Same(t, e2, errors.Unwrap(e3))
-	assert.Same(t, e1, errors.Unwrap(e2))
-	assert.NoError(t, errors.Unwrap(e1))
 }
