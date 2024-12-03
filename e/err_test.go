@@ -72,6 +72,11 @@ func TestErr(t *testing.T) {
 				expected: "(*e.Err)(nil)",
 			},
 			{
+				name:     "nil wrapping fields",
+				in:       (*e.Err)(nil).WithField("foo", "bar"),
+				expected: "(*e.Err)(nil) (foo=bar)",
+			},
+			{
 				name:     "empty",
 				in:       &e.Err{},
 				expected: "(*e.Err)(empty)",
@@ -108,6 +113,16 @@ func TestErr(t *testing.T) {
 				expected: "error (key=value)",
 			},
 			{
+				name:     "from nil error",
+				in:       e.From(nil),
+				expected: "error(nil)",
+			},
+			{
+				name:     "from nil with fields",
+				in:       e.From(nil, fields.F("key", "value")),
+				expected: "error(nil) (key=value)",
+			},
+			{
 				name:     "empty with fields",
 				in:       (&e.Err{}).WithField("foo", "bar"),
 				expected: "(*e.Err)(empty) (foo=bar)",
@@ -127,9 +142,11 @@ func TestErr(t *testing.T) {
 
 		assert.NotSame(t, e1, e1.Wrap(e2))
 		assert.NotSame(t, e2, e1.Wrap(e2))
-		assert.NoError (t, errors.Unwrap(e1.Wrap(e2)), "errors unwrap returns nil")
+		assert.NoError(t, errors.Unwrap(e1.Wrap(e2)), "errors unwrap returns nil")
 		assert.Equal(t, "e1 (f1=v1): e2 (f2=v2)", e1.Wrap(e2).Error())
 		assert.Equal(t, "e1 (f1=v1) (f3=v3): e2 (f2=v2)", e1.Wrap(e2, fields.F("f3", "v3")).Error())
+
+		assert.Equal(t, "e1 (f1=v1): error(nil)", e1.Wrap(nil).Error())
 	})
 
 	t.Run(".Is()", func(t *testing.T) {

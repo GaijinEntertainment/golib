@@ -34,6 +34,10 @@ func NewFrom(reason string, wrapped error, f ...fields.Field) *Err {
 // will not return origin error. Passing nil to this function will result with
 // empty error.
 func From(origin error, f ...fields.Field) *Err {
+	if origin == nil {
+		origin = errors.New("error(nil)") //nolint:err113
+	}
+
 	return &Err{
 		errs:   []error{origin},
 		fields: f,
@@ -46,6 +50,10 @@ func From(origin error, f ...fields.Field) *Err {
 //
 //	e.New("e1").Wrap(errors.New("e2")) // e1: e2
 func (e *Err) Wrap(err error, f ...fields.Field) *Err {
+	if err == nil {
+		err = errors.New("error(nil)") //nolint:err113
+	}
+
 	return &Err{
 		errs:   []error{e, err},
 		fields: f,
