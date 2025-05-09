@@ -1,6 +1,7 @@
 package fields
 
 import (
+	"iter"
 	"strings"
 )
 
@@ -34,27 +35,27 @@ func (l List) ToDict() Dict {
 	return d
 }
 
+// All returns an iterator over all key-value pairs in the List as iter.Seq2[string, any].
+//
+// Example:
+//
+//	for k, v := range l.All() {
+//	    fmt.Println(k, v)
+//	}
+func (l List) All() iter.Seq2[string, any] {
+	return func(yield func(string, any) bool) {
+		for i := 0; i < len(l); i++ {
+			if !yield(l[i].K, l[i].V) {
+				return
+			}
+		}
+	}
+}
+
 // WriteTo writes the List as a string in the format "(key1=val1, key2=val2)" to the provided builder.
 // If the List is empty, nothing is written.
 func (l List) WriteTo(b *strings.Builder) {
-	if len(l) == 0 {
-		return
-	}
-
-	b.WriteString("(")
-
-	sep := false
-	for i := 0; i < len(l); i++ {
-		if sep {
-			b.WriteString(", ")
-		}
-
-		writeKVTo(b, l[i].K, l[i].V)
-
-		sep = true
-	}
-
-	b.WriteString(")")
+	WriteTo(b, l.All())
 }
 
 // String returns the List as a string in the format "(key1=val1, key2=val2)".

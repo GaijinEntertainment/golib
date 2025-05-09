@@ -3,6 +3,7 @@ package fields
 
 import (
 	"fmt"
+	"iter"
 	"strings"
 )
 
@@ -54,4 +55,28 @@ func (f Field) String() string {
 	f.WriteTo(b)
 
 	return b.String()
+}
+
+// WriteTo writes key-value pairs from an iter.Seq2[string, any] to the builder in the format "(key1=val1, key2=val2)".
+// If no fields are present, nothing is written.
+func WriteTo(b *strings.Builder, seq iter.Seq2[string, any]) {
+	first := true
+
+	for k, v := range seq {
+		if first {
+			first = false
+
+			b.WriteString("(")
+		} else {
+			b.WriteString(", ")
+		}
+
+		writeKVTo(b, k, v)
+	}
+
+	// means that we've written at least one field, and, therefore,
+	// can close the parenthesis
+	if !first {
+		b.WriteString(")")
+	}
 }

@@ -1,6 +1,7 @@
 package fields
 
 import (
+	"iter"
 	"strings"
 )
 
@@ -34,27 +35,27 @@ func (d Dict) ToList() List {
 	return s
 }
 
+// All returns an iterator over all key-value pairs in the Dict as iter.Seq2[string, any].
+//
+// Example:
+//
+//	for k, v := range d.All() {
+//	    fmt.Println(k, v)
+//	}
+func (d Dict) All() iter.Seq2[string, any] {
+	return func(yield func(string, any) bool) {
+		for k, v := range d {
+			if !yield(k, v) {
+				return
+			}
+		}
+	}
+}
+
 // WriteTo writes the Dict as a string in the format "(key1=val1, key2=val2)" to the provided builder.
 // If the Dict is empty, nothing is written. The order of fields is unspecified.
 func (d Dict) WriteTo(b *strings.Builder) {
-	if len(d) == 0 {
-		return
-	}
-
-	b.WriteString("(")
-
-	sep := false
-	for k, v := range d {
-		if sep {
-			b.WriteString(CollectionSep)
-		}
-
-		writeKVTo(b, k, v)
-
-		sep = true
-	}
-
-	b.WriteString(")")
+	WriteTo(b, d.All())
 }
 
 // String returns the Dict as a string in the format "(key1=val1, key2=val2)".

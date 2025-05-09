@@ -41,4 +41,21 @@ func TestList(t *testing.T) {
 		l = fields.List{{"foo", "bar"}, {"baz", "qux"}}
 		require.Equal(t, "(foo=bar, baz=qux)", l.String())
 	})
+
+	t.Run("All early exit", func(t *testing.T) {
+		t.Parallel()
+
+		l := fields.List{
+			{"foo", "bar"},
+			{"baz", "qux"},
+		}
+
+		var seen []string
+		for k := range l.All() {
+			seen = append(seen, k)
+			break // stop after first
+		}
+
+		require.Len(t, seen, 1)
+	})
 }
