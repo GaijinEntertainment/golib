@@ -1,3 +1,4 @@
+// Package fields provides types and functions for working with key-value fields.
 package fields
 
 import (
@@ -5,17 +6,24 @@ import (
 	"strings"
 )
 
-// Field is a generic key-value pair container.
+// Field represents a key-value pair, where the key is a string and the value can be any type.
 type Field struct {
+	// Key of the field
 	K string
+	// Value of the field
 	V any
 }
 
-// F is a shorthand for creating a new Field.
+// F creates a new Field with the given key and value.
+//
+// Example:
+//
+//	f := fields.F("user", "alice")
 func F(key string, value any) Field {
 	return Field{K: key, V: value}
 }
 
+// writeKVTo writes a key-value pair to the given builder in the format "key=value".
 func writeKVTo(b *strings.Builder, key string, value any) {
 	b.WriteString(key)
 	b.WriteRune('=')
@@ -35,14 +43,12 @@ func writeKVTo(b *strings.Builder, key string, value any) {
 	}
 }
 
-// WriteTo writes a string representation of a [Field] to a given builder in the
-// `{key}={value}`.
+// WriteTo writes the Field as a string in the format "key=value" to the provided builder.
 func (f Field) WriteTo(b *strings.Builder) {
 	writeKVTo(b, f.K, f.V)
 }
 
-// String returns a string representation of a [Field] in the `{key}={value}`
-// format.
+// String returns the Field as a string in the format "key=value".
 func (f Field) String() string {
 	b := &strings.Builder{}
 	f.WriteTo(b)
