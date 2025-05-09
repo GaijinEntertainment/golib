@@ -3,6 +3,7 @@ package e_test
 import (
 	"errors"
 	"os"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -226,7 +227,7 @@ func TestErr(t *testing.T) {
 
 		assert.NotSame(t, e1, e2)
 		assert.Equal(t, e1.Error(), e2.Error())
-		assert.NotSame(t, e1.Fields(), e2.Fields())
+		assert.NotEqual(t, reflect.ValueOf(e1.Fields()).UnsafePointer(), reflect.ValueOf(e2.Fields()).UnsafePointer())
 		assert.ElementsMatch(t, e1.Fields(), e2.Fields())
 	})
 
@@ -239,7 +240,7 @@ func TestErr(t *testing.T) {
 		assert.NotSame(t, e1, e2)
 		assert.ErrorIs(t, e2, e1, "child error passes errors.Is for parent")
 
-		assert.NotSame(t, e1.Fields(), e2.Fields())
+		assert.NotEqual(t, reflect.ValueOf(e1.Fields()).UnsafePointer(), reflect.ValueOf(e2.Fields()).UnsafePointer())
 		assert.Len(t, e1.Fields(), 1)
 		assert.Len(t, e2.Fields(), 1)
 		assert.Equal(t, "e1 (f1=v1) (f2=v2)", e2.Error())
@@ -254,7 +255,7 @@ func TestErr(t *testing.T) {
 		assert.NotSame(t, e1, e2)
 		assert.ErrorIs(t, e2, e1, "child error passes errors.Is for parent")
 
-		assert.NotSame(t, e1.Fields(), e2.Fields())
+		assert.NotEqual(t, reflect.ValueOf(e1.Fields()).UnsafePointer(), reflect.ValueOf(e2.Fields()).UnsafePointer())
 		assert.Len(t, e1.Fields(), 1)
 		assert.Len(t, e2.Fields(), 1)
 		assert.Equal(t, "e1 (f1=v1) (f2=v2)", e2.Error())

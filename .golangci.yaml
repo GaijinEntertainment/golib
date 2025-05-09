@@ -1,4 +1,4 @@
-###golangci-lint:version: 1.60
+###golangci-lint:version: 1.64
 run:
   timeout: 30s
   allow-parallel-runners: true
