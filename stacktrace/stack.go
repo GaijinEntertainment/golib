@@ -43,7 +43,9 @@ func (s *Stack) FramesIter() iter.Seq2[int, runtime.Frame] {
 	return func(yield func(int, runtime.Frame) bool) {
 		start := len(s.frames) - 1
 		for i := start; i >= 0; i-- {
-			yield(start-i, s.frames[i])
+			if !yield(start-i, s.frames[i]) {
+				break
+			}
 		}
 	}
 }
