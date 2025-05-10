@@ -40,7 +40,7 @@ func writeKVTo(b *strings.Builder, key string, value any) {
 		b.WriteString(val.Error())
 
 	default:
-		b.WriteString(fmt.Sprintf("%v", val))
+		_, _ = fmt.Fprintf(b, "%v", value)
 	}
 }
 

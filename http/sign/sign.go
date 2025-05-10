@@ -48,7 +48,7 @@ func NewDigest(v Version, timeStamp time.Time) *Digest {
 		ts:  [8]byte{},
 	}
 
-	binary.BigEndian.PutUint64(s.ts[:], uint64(timeStamp.Unix()))
+	binary.BigEndian.PutUint64(s.ts[:], uint64(timeStamp.Unix())) //nolint:gosec
 
 	_, _ = s.h.Write(s.ts[:])
 

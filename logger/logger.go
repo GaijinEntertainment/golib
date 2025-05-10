@@ -37,6 +37,21 @@ func New(adapter Adapter, maxLevel int) Logger {
 	}
 }
 
+// NewNop creates a new logger that does nothing.
+func NewNop() Logger {
+	return Logger{
+		adapter:  NopAdapter{},
+		maxLevel: DefaultLogLevel,
+	}
+}
+
+// IsNop returns true if the logger's adapter is a [NopAdapter].
+func (l Logger) IsNop() bool {
+	_, ok := l.adapter.(NopAdapter)
+
+	return ok
+}
+
 // Error logs a message with the [LevelError] log-level.
 //
 // Use Error to log any unrecoverable error, such as a database query failure
@@ -150,21 +165,6 @@ func (l Logger) WithName(name string) Logger {
 // It is the application's responsibility to call [Logger.Flush] before exiting.
 func (l Logger) Flush() error {
 	return l.adapter.Flush() //nolint:wrapcheck
-}
-
-// NewNop creates a new logger that does nothing.
-func NewNop() Logger {
-	return Logger{
-		adapter:  NopAdapter{},
-		maxLevel: DefaultLogLevel,
-	}
-}
-
-// IsNop returns true if the logger's adapter is a [NopAdapter].
-func (l Logger) IsNop() bool {
-	_, ok := l.adapter.(NopAdapter)
-
-	return ok
 }
 
 // IsZero returns true if the logger is a zero-value structure.

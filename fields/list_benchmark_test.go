@@ -27,7 +27,7 @@ import (
 //
 // Benchmark_List/1000
 // Benchmark_List/1000-32	51418		23741 ns/op		86656B/op	8 allocs/op
-// PASS
+// PASS.
 func Benchmark_List(b *testing.B) {
 	const prealloc = 10
 

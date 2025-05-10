@@ -33,7 +33,7 @@ func TestList(t *testing.T) {
 		t.Parallel()
 
 		l := fields.List{}
-		require.Equal(t, "", l.String())
+		require.Empty(t, l.String())
 
 		l = fields.List{{"foo", "bar"}}
 		require.Equal(t, "(foo=bar)", l.String())

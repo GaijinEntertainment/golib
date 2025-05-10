@@ -33,7 +33,7 @@ func TestField(t *testing.T) {
 			},
 			{
 				name:     "error value",
-				in:       fields.F("key", errors.New("error")), //nolint:goerr113
+				in:       fields.F("key", errors.New("error")), //nolint:err113
 				expected: "key=error",
 			},
 			{
@@ -44,7 +44,7 @@ func TestField(t *testing.T) {
 		}
 
 		for _, tc := range tt {
-			t.Run(tc.name, func(t *testing.T) {
+			t.Run(tc.name, func(t *testing.T) { //nolint:paralleltest
 				if got := tc.in.String(); got != tc.expected {
 					assert.Equal(t, tc.expected, got)
 				}

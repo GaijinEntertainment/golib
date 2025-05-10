@@ -28,7 +28,7 @@ import (
 // Benchmark_Container/struct_slice_direct/1000-32		 231802		 4666 ns/op		32768 B/op	1 allocs/op
 // Benchmark_Container/struct_slice_constructor/1000
 // Benchmark_Container/struct_slice_constructor/1000-32	 280346		 4505 ns/op		32768 B/op	1 allocs/op
-// PASS
+// PASS.
 func Benchmark_Container(b *testing.B) {
 	sizes := []int{10, 100, 1000}
 

@@ -14,7 +14,7 @@ jobs:
     name: "Lint"
     strategy:
       matrix:
-        go-version: [ "1.23" ]
+        go-version: [ "1.24" ]
         os: [ "ubuntu-latest" ]
     runs-on: ${{ matrix.os }}
     permissions:
@@ -37,7 +37,7 @@ jobs:
     name: "Test"
     strategy:
       matrix:
-        go-version: [ "1.22", "1.23" ]
+        go-version: [ "1.23", "1.24" ]
         os: [ "ubuntu-latest", "windows-latest", "macos-latest" ]
     runs-on: ${{ matrix.os }}
     steps:

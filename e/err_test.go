@@ -192,7 +192,7 @@ func TestErr(t *testing.T) {
 
 		var target *myErr
 
-		assert.False(t, errors.As(e1, &target))
+		assert.False(t, errors.As(e1, &target)) //nolint:testifylint //there is no `assert.NotErrorAs`
 
 		assert.ErrorAs(t, e2, &target)
 		assert.ErrorAs(t, e3, &target)

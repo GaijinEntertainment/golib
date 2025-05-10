@@ -29,7 +29,7 @@ import (
 //
 // Benchmark_Dict/1000
 // Benchmark_Dict/1000-32	28310		41133 ns/op		83231B/op         24 allocs/op
-// PASS
+// PASS.
 func Benchmark_Dict(b *testing.B) {
 	const prealloc = 10
 

@@ -35,7 +35,7 @@ func TestDict(t *testing.T) {
 		t.Parallel()
 
 		d := fields.Dict{}
-		require.Equal(t, "", d.String())
+		require.Empty(t, d.String())
 
 		d = fields.Dict{"foo": "bar"}
 		require.ElementsMatch(t, []string{"foo=bar"}, collectionStringToKVElements(d.String()))

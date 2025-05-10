@@ -19,7 +19,7 @@ func TestLog(t *testing.T) {
 	entries := make(bufferadapter.LogEntries, 0)
 	log := logger.New(bufferadapter.New(&entries), logger.DefaultLogLevel)
 
-	e1 := errors.New("e1") //nolint:goerr113
+	e1 := errors.New("e1") //nolint:err113
 	e2 := fmt.Errorf("e2: %w", e1)
 	e3 := e.NewFrom("e3", e1, fields.F("foo", "bar"))
 	e4 := e.New("e4")

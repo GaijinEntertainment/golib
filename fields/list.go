@@ -7,9 +7,9 @@ import (
 
 // List is an ordered collection of Field values, preserving insertion order.
 // Such collection do not check for duplicate keys.
-type List []Field
+type List []Field //nolint:recvcheck //we need Add to be a pointer receiver to modify original value.
 
-// Add appends one or more fields to the List, modifying it.
+// Add one or more fields to the List, modifying it.
 //
 // Example:
 //
