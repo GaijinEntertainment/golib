@@ -7,17 +7,26 @@ import (
 	"strings"
 )
 
+// Stack represents a captured stack trace as a sequence of frames.
+//
+// Use the Capture function to obtain a Stack, and the String method to render it.
+//
+// Example:
+//
+//	stack := stacktrace.Capture(0, 10)
+//	fmt.Println(stack)
 type Stack struct {
-	frames []runtime.Frame `exhaustruct:"optional"`
+	frames []runtime.Frame
 }
 
+// NewStack returns a new Stack with preallocated space for the given initial size.
 func NewStack(initialSize int) *Stack {
 	return &Stack{
 		frames: make([]runtime.Frame, 0, initialSize),
 	}
 }
 
-// AddCaller adds the caller's frame to the stack.
+// AddCaller adds the current caller's frame to the stack.
 func (s *Stack) AddCaller() {
 	pcs := make([]uintptr, 1)
 	runtime.Callers(3, pcs) //nolint:mnd
@@ -27,18 +36,19 @@ func (s *Stack) AddCaller() {
 	s.AddFrame(frame)
 }
 
+// AddFrame appends the given runtime.Frame to the stack.
 func (s *Stack) AddFrame(f runtime.Frame) {
 	s.frames = append(s.frames, f)
 }
 
-// Len returns amount of frames contained in stack.
+// Len returns the number of frames contained in the stack.
 func (s *Stack) Len() int {
 	return len(s.frames)
 }
 
 // FramesIter returns an iterator over the frames in the stack.
 //
-// The iterator yields the frames starting from uppermost (the one added last).
+// The iterator yields the frames starting from the most recent (the one added last).
 func (s *Stack) FramesIter() iter.Seq2[int, runtime.Frame] {
 	return func(yield func(int, runtime.Frame) bool) {
 		start := len(s.frames) - 1
@@ -50,6 +60,8 @@ func (s *Stack) FramesIter() iter.Seq2[int, runtime.Frame] {
 	}
 }
 
+// String returns a multi-line string representation of the stack trace.
+// Each frame is shown with its function name and file:line.
 func (s *Stack) String() string {
 	b := &strings.Builder{}
 
@@ -64,13 +76,13 @@ func (s *Stack) String() string {
 	return b.String()
 }
 
-// WriteFrameToBuffer writes a string representation of the given [runtime.Frame]
-// to the provided [strings.Builder].
+// WriteFrameToBuffer writes a string representation of the given runtime.Frame
+// to the provided strings.Builder.
 //
 // The format is:
 //
-//		FunctionName
-//	     FilePath:LineNumber
+//	FunctionName
+//	\tFilePath:LineNumber
 func WriteFrameToBuffer(f runtime.Frame, b *strings.Builder) {
 	b.WriteString(f.Function)
 	b.WriteRune('\n')
