@@ -4,24 +4,20 @@ import (
 	"dev.gaijin.team/go/golib/fields"
 )
 
+// ErrorLogger defines a function that logs an error message, an error, and optional fields.
 type ErrorLogger func(msg string, err error, fs ...fields.Field)
 
-// Log logs the provided error using the given logger.
+// Log logs the provided error using the given ErrorLogger function.
 //
-// If the error is nil, the function does nothing.
-//
-// If the error is of type [Err], its reason is used as the error message, the
-// wrapped error is passed as the actual error, and the error's fields are passed
-// as log fields.
-//
-// Otherwise, err.Error() is used as the error message, and nil is passed as the
-// actual error.
+// If err is nil, Log does nothing. If err is of type Err, its reason is used as the log message,
+// the wrapped error is passed as the error, and its fields are passed as log fields.
+// For other error types, err.Error() is used as the message and nil is passed as the error.
 func Log(err error, f ErrorLogger) {
 	if err == nil {
 		return
 	}
 
-	// we're not interested in wrapped error, therefore we're only typecasting it.
+	// We're not interested in wrapped error, therefore we're only typecasting it.
 	if e, ok := err.(*Err); ok { //nolint:errorlint
 		var wrapped error
 		if len(e.errs) > 1 {

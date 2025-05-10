@@ -1,46 +1,46 @@
-// Package e provides custom error type and utilities to work with it.
+// Package e provides a custom error type with support for error chaining and
+// structured metadata fields.
 //
-// Its main type [Err] provides the ability to conveniently work with chains of
-// errors, offering methods to wrap any errors and pass metadata using fields
-// (fields.Field).
+// The main type, Err, enables convenient error wrapping and the attachment of
+// key-value metadata fields (fields.Field). Errors can be wrapped to add context
+// and enriched with fields for structured logging or diagnostics.
 //
-// Example:
+// Example: Wrapping errors with context
 //
-//	var (
-//		ErrJsonParseFailed = e.New("JSON parse failed")
-//	)
-//
+//	var ErrJSONParseFailed = e.New("JSON parse failed")
 //	var val any
 //	if err := json.Unmarshal([]byte(`["invalid", "json]`), &val); err != nil {
-//		return ErrJsonParseFailed.Wrap(err) // "JSON parse failed: unexpected end of JSON input"
+//		return ErrJSONParseFailed.Wrap(err)
+//		// Output: "JSON parse failed: unexpected end of JSON input"
 //	}
 //
-// Any incoming error can be granted the functionality of [Err] by using the
-// [From] function. Note that this is not a form of error wrapping - immediately
-// unwrapping such an error will not return the original one.
+// Example: Enriching errors with fields
 //
-// Example:
+//	err := e.New("operation failed").WithField("user_id", 42)
+//	// Output: "operation failed (user_id=42)"
+//
+//	err = err.Wrap(e.New("db error").WithFields(fields.F("query", "SELECT *")))
+//	// Output: "operation failed (user_id=42): db error (query=SELECT *)"
+//
+// Any error can be converted to an Err using the From function. This does not
+// wrap the error; unwrapping will not return the original error.
 //
 //	e.From(errors.New("error")) // "error"
 //	errors.Unwrap(e.From(errors.New("error"))) // nil
 //
-// [Err] serializes to following format:
+// The Err string format is:
 //
-//	`<error reason>[ (fields...)][: wrapped error string]`
+//	<reason> (fields...): <wrapped error string>
 //
-// In other words, arbitrary fields are always enclosed in parentheses, and the
-// wrapped error is separated with a colon and a space.
+// Fields are always enclosed in parentheses, and wrapped errors are separated by
+// a colon and space.
 //
-// Package does not provide any methods to modify existing errors, as it is
-// considered error-prone. Instead, any public method of the package that returns
-// an error - returns a new instance.
+// All methods that return errors create new instances; errors are immutable.
 //
-// Although [Err] implements methods [Err.Unwrap], [Err.Is], and [Err.As], these
-// methods are intended for internal use. These methods are marked as deprecated
-// to avoid confusion and improve developer experience. Consider using the
-// corresponding methods of the [errors] package instead.
+// Deprecated methods Unwrap, Is, and As are present for compatibility with the
+// errors package, but should not be used directly. Use the errors package
+// functions instead.
 //
-// To log a specific error, the package provides a convenience method [Log]. This
-// method creates a log entry from the specified error if it is not nil. It is
-// designed to be compatible with our logger abstraction - logger.Logger.
+// The Log function logs errors using our logger abstraction - logger.Logger,
+// extracting reason, wrapped error, and fields, logging them appropriately.
 package e
