@@ -26,7 +26,7 @@ func TestOK(t *testing.T) {
 	})
 
 	assert.ErrorIs(t, err, errTestError)
-	assert.Equal(t, "no error assurance failed: test error", err.Error())
+	assert.Equal(t, "OK assurance failed: test error", err.Error())
 }
 
 var errTestError = errors.New("test error")

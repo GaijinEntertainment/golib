@@ -29,7 +29,7 @@ func TestNoErr(t *testing.T) {
 	})
 
 	assert.ErrorIs(t, err, errTestError)
-	assert.Equal(t, "OK assurance failed: test error", err.Error())
+	assert.Equal(t, "NoErr assurance failed: test error", err.Error())
 }
 
 func errorFn1() error {
