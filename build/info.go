@@ -20,14 +20,24 @@ var (
 	vcsRevision = unknown
 	vcsModified = unknown
 
-	time   = unknown
-	vcsTag = unknown
+	buildTime = unknown
+	version   = unknown
 )
 
 // Info represents the build information for a Go binary.
 // It contains details about the Go environment used for building,
 // version control system state, and custom build-time information.
 type Info struct {
+	//
+	// User-defined information, set at build time.
+	//
+
+	// Version is the version of the binary. In case parameter is not set,
+	// via linker flags it will be taken from debug.ReadBuildInfo().
+	Version string `json:"version"`
+	// BuildTime is the build time.
+	BuildTime string `json:"build-time"`
+
 	//
 	// Basic go information, detected automatically.
 	//
@@ -48,25 +58,16 @@ type Info struct {
 	// VCSModified is the version control system modified status. "true" in case
 	// repo is "dirty".
 	VCSModified string `json:"vcs-modified"`
-
-	//
-	// User-defined information, set at build time.
-	//
-
-	// BuildTime is the build time.
-	BuildTime string `json:"build-time"`
-	// BuildTag is the vcs tag of the commit, binary built from.
-	BuildTag string `json:"build-tag"`
 }
 
 // String returns a human-readable representation of build information.
-// The format includes Go version, OS, architecture, VCS revision, and build details.
+// The format includes version, Go version, OS, architecture, VCS revision, and build details.
 // If the repository was modified (dirty), this is indicated in the output.
-// If a build tag is present, it's included in square brackets. after the revision.
 func (i Info) String() string {
 	b := &strings.Builder{}
 
-	b.WriteString("built with ")
+	b.WriteString(i.Version)
+	b.WriteString(" built with ")
 	b.WriteString(i.GoVersion)
 	b.WriteString(" for ")
 	b.WriteString(i.GoOS)
@@ -74,12 +75,6 @@ func (i Info) String() string {
 	b.WriteString(i.GoArch)
 	b.WriteString(" from ")
 	b.WriteString(i.VCSRevision)
-
-	if i.BuildTag != unknown {
-		b.WriteString(" [")
-		b.WriteString(i.BuildTag)
-		b.WriteRune(']')
-	}
 
 	if i.VCSModified == "true" {
 		b.WriteString(" (dirty)")
@@ -96,19 +91,20 @@ func (i Info) String() string {
 // build information as key-value pairs.
 func (i Info) ToFields() fields.List {
 	return fields.List{
+		fields.F("version", i.Version),
 		fields.F("go-version", i.GoVersion),
 		fields.F("go-os", i.GoOS),
 		fields.F("go-arch", i.GoArch),
 		fields.F("vcs-revision", i.VCSRevision),
 		fields.F("vcs-modified", i.VCSModified),
 		fields.F("build-time", i.BuildTime),
-		fields.F("build-tag", i.BuildTag),
 	}
 }
 
 // GetInfo returns the build information.
 // It automatically parses build information from runtime debug data
 // the first time it's called, and caches the result for subsequent calls.
+// Values set via linker flags (-X) are preserved and not overwritten.
 func GetInfo() Info {
 	if !buildInfoParsed {
 		buildInfoParsed = true
@@ -117,22 +113,24 @@ func GetInfo() Info {
 	}
 
 	return Info{
+		Version:     version,
 		GoVersion:   goVersion,
 		GoOS:        goOS,
 		GoArch:      goArch,
 		VCSRevision: vcsRevision,
 		VCSModified: vcsModified,
-		BuildTime:   time,
-		BuildTag:    vcsTag,
+		BuildTime:   buildTime,
 	}
 }
 
 //nolint:gochecknoglobals
-var settingsProcessors = map[string]func(s debug.BuildSetting){
-	"GOOS":         func(s debug.BuildSetting) { goOS = s.Value },
-	"GOARCH":       func(s debug.BuildSetting) { goArch = s.Value },
-	"vcs.revision": func(s debug.BuildSetting) { vcsRevision = s.Value },
-	"vcs.modified": func(s debug.BuildSetting) { vcsModified = s.Value },
+var settingsValues = map[string]*string{
+	"GOOS":         &goOS,
+	"GOARCH":       &goArch,
+	"vcs.revision": &vcsRevision,
+	"vcs.modified": &vcsModified,
+	"build-time":   &buildTime,
+	"version":      &version,
 }
 
 func parseBuildInfo() {
@@ -143,9 +141,13 @@ func parseBuildInfo() {
 
 	goVersion = info.GoVersion
 
+	if version == unknown {
+		version = info.Main.Version
+	}
+
 	for _, s := range info.Settings {
-		if f, ok := settingsProcessors[s.Key]; ok {
-			f(s)
+		if ptr, ok := settingsValues[s.Key]; ok && *ptr == unknown {
+			*ptr = s.Value
 		}
 	}
 }
