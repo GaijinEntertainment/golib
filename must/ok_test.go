@@ -1,12 +1,12 @@
 package must_test
 
 import (
-	"errors"
-	"regexp"
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
+	"dev.gaijin.team/go/golib/e"
 	"dev.gaijin.team/go/golib/must"
 )
 
@@ -14,35 +14,34 @@ func TestOK(t *testing.T) {
 	t.Parallel()
 
 	assert.NotPanics(t, func() {
-		_ = must.OK(regexp.Compile("[a-z]")) //nolint:gocritic
+		uri := must.OK(url.Parse("https://example.com"))
+		assert.Equal(t, "https://example.com", uri.String())
 	})
 
-	assert.Panics(t, func() {
-		_ = must.OK(regexp.Compile("[a-z")) //nolint:staticcheck,gocritic
+	imminentError := func() (bool, error) { return false, e.New("imminent error") }
+
+	err := catchPanicError(t, func() {
+		_ = must.OK(imminentError())
 	})
 
-	err := catchPanic(t, func() {
-		_ = must.OK(errorFn())
-	})
-
-	assert.ErrorIs(t, err, errTestError)
-	assert.Equal(t, "OK assurance failed: test error", err.Error())
+	assert.ErrorContains(t, err, "must.OK assertion failed: imminent error")
 }
 
-var errTestError = errors.New("test error")
-
-func errorFn() (bool, error) {
-	return false, errTestError
-}
-
-func catchPanic(t *testing.T, panickingFn func()) (err error) {
+func catchPanicError(t *testing.T, fn func()) (err error) {
 	t.Helper()
 
 	defer func() {
-		err = recover().(error) //nolint:forcetypeassert
+		if rv := recover(); rv != nil {
+			re, ok := rv.(error)
+			if !ok {
+				t.Fatal("recovered panic value is not an error")
+			}
+
+			err = re
+		}
 	}()
 
-	panickingFn()
+	fn()
 
 	return nil
 }

@@ -4,19 +4,11 @@ import (
 	"dev.gaijin.team/go/golib/e"
 )
 
-// NoErr is a wrapper function to simplify code, in situations where developer is sure
-// that the function being called cannot return an error. E.g.
+// NoErr panics if error is not nil.
 //
-//	err := json.Unmarshal([]byte(`["totally", "valid", "data"]`), &data)
-//	if err != nil {
-//	    panic(err)
-//	}
-//
-// developer doesn't expect error here because the parsed data is static and correct
-//
-//	must.OK(json.Unmarshal([]byte(`["totally", "valid", "data"]`), &data))
+//	must.NoErr(json.Unmarshal(staticJSON, &data))
 func NoErr(err error) {
 	if err != nil {
-		panic(e.NewFrom("NoErr assurance failed", err))
+		panic(e.NewFrom("must.NoErr assertion failed", err))
 	}
 }

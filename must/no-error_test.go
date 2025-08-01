@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"dev.gaijin.team/go/golib/e"
 	"dev.gaijin.team/go/golib/must"
 )
 
@@ -13,25 +14,17 @@ func TestNoErr(t *testing.T) {
 	t.Parallel()
 
 	assert.NotPanics(t, func() {
-		var v []string
+		var data []string
 
-		must.NoErr(json.Unmarshal([]byte(`["foo"]`), &v))
+		must.NoErr(json.Unmarshal([]byte(`["valid", "json"]`), &data))
+		assert.Equal(t, []string{"valid", "json"}, data)
 	})
 
-	assert.Panics(t, func() {
-		var v []string
+	imminentError := func() error { return e.New("imminent error") }
 
-		must.NoErr(json.Unmarshal([]byte(`["foo]`), &v))
+	err := catchPanicError(t, func() {
+		must.NoErr(imminentError())
 	})
 
-	err := catchPanic(t, func() {
-		must.NoErr(errorFn1())
-	})
-
-	assert.ErrorIs(t, err, errTestError)
-	assert.Equal(t, "NoErr assurance failed: test error", err.Error())
-}
-
-func errorFn1() error {
-	return errTestError
+	assert.ErrorContains(t, err, "must.NoErr assertion failed: imminent error")
 }
