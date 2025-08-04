@@ -122,4 +122,20 @@ func TestAdapter(t *testing.T) {
 
 		assert.Equal(t, "test-logger", logs.All()[0].LoggerName)
 	})
+
+	t.Run("NewErrorLogger()", func(t *testing.T) {
+		t.Parallel()
+
+		adapter, logs := newAdapter()
+		lgr := logger.New(adapter, logger.LevelError)
+		errorLogger := logger.NewErrorLogger(lgr, logger.LevelError)
+
+		errorLogger("test", errors.New("test"))
+
+		require.Equal(t, 1, logs.Len())
+
+		assert.Equal(t, zapcore.ErrorLevel, logs.All()[0].Level)
+		assert.Equal(t, "test", logs.All()[0].Message)
+		assert.Equal(t, "test", logs.All()[0].ContextMap()["error"])
+	})
 }

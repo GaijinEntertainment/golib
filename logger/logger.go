@@ -3,6 +3,7 @@ package logger
 import (
 	"math"
 
+	"dev.gaijin.team/go/golib/e"
 	"dev.gaijin.team/go/golib/fields"
 )
 
@@ -170,4 +171,15 @@ func (l Logger) Flush() error {
 // IsZero returns true if the logger is a zero-value structure.
 func (l Logger) IsZero() bool {
 	return l.adapter == nil && l.maxLevel == 0
+}
+
+// NewErrorLogger creates new [e.ErrorLogger] that allows to log errors with
+// given log-level.
+//
+// The function is most usesful for scenarios where loglevel is configured after
+// logger creation, such as in a middlewares.
+func NewErrorLogger(log Logger, level int) e.ErrorLogger {
+	return func(msg string, err error, fs ...fields.Field) {
+		log.Log(level, msg, err, fs...)
+	}
 }
