@@ -38,6 +38,7 @@ func (h *logrusHook) Reset() {
 
 func newAdapter(hook *logrusHook) *logrusadapter.Adapter {
 	ll := logrus.New()
+
 	ll.Level = logrus.TraceLevel
 	ll.AddHook(hook)
 

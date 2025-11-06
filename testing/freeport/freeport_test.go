@@ -24,6 +24,7 @@ func TestGet(t *testing.T) {
 		l, err := net.ListenTCP("tcp", &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: p, Zone: ""})
 		require.NoError(t, err)
 		require.NotNil(t, l)
+
 		_ = l.Close()
 	})
 
@@ -39,6 +40,7 @@ func TestGet(t *testing.T) {
 		c, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.ParseIP("127.0.0.1"), Port: p, Zone: ""})
 		require.NoError(t, err)
 		require.NotNil(t, c)
+
 		_ = c.Close()
 	})
 }
@@ -48,6 +50,7 @@ func TestReserve(t *testing.T) {
 
 	t.Run("TCP", func(t *testing.T) {
 		t.Parallel()
+
 		p := freeport.ReserveTCP(t)
 		require.Positive(t, p)
 
@@ -61,6 +64,7 @@ func TestReserve(t *testing.T) {
 
 	t.Run("UDP", func(t *testing.T) {
 		t.Parallel()
+
 		p := freeport.ReserveUDP(t)
 		require.Positive(t, p)
 

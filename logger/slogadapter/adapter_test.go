@@ -126,7 +126,6 @@ func TestAdapter(t *testing.T) {
 			assert.Equal(t, tc.msg, buf[0].Message)
 			assert.Same(t, tc.err, buf[0].Attrs[errorKey])
 		}
-
 	})
 
 	t.Run("WithFields", func(t *testing.T) {
@@ -163,6 +162,5 @@ func TestAdapter(t *testing.T) {
 		require.Len(t, buf, 1)
 
 		assert.Equal(t, "test-logger", buf[0].Group)
-
 	})
 }

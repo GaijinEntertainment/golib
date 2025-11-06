@@ -91,6 +91,7 @@ func TestAdapter(t *testing.T) {
 		t.Parallel()
 
 		adapter, logs := newAdapter()
+
 		adapter = adapter.WithFields(fields.F("foo", "bar"), fields.F("baz", 42))
 
 		adapter.Log(logger.LevelInfo, "test", nil)
@@ -114,6 +115,7 @@ func TestAdapter(t *testing.T) {
 		t.Parallel()
 
 		adapter, logs := newAdapter()
+
 		adapter = adapter.WithName("test-logger")
 
 		adapter.Log(logger.LevelInfo, "test", nil)

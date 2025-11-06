@@ -38,10 +38,8 @@ func (a *Adapter) Log(level int, msg string, err error, fs ...fields.Field) {
 	case logger.LevelInfo:
 		sl = slog.LevelInfo
 
-	case logger.LevelDebug:
-		sl = slog.LevelDebug
-
-	case logger.LevelTrace:
+	case logger.LevelDebug,
+		logger.LevelTrace:
 		sl = slog.LevelDebug
 
 	default:

@@ -42,7 +42,6 @@ func TestDict(t *testing.T) {
 
 		d = fields.Dict{"foo": "bar", "baz": "qux"}
 		require.ElementsMatch(t, []string{"foo=bar", "baz=qux"}, collectionStringToKVElements(d.String()))
-
 	})
 
 	t.Run("All early exit", func(t *testing.T) {

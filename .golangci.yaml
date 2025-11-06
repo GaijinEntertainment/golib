@@ -1,6 +1,5 @@
-###golangci-lint:version: 2.1
+###golangci-lint:version: 2.6
 version: "2"
-
 run:
   modules-download-mode: readonly
 
@@ -11,12 +10,10 @@ issues:
 linters:
   default: all
   disable:
+    - funcorder
     - cyclop
     - depguard
     - errname
-    - funlen
-    - gocognit
-    - gocyclo
     - godox
     - goheader
     - govet
@@ -24,26 +21,55 @@ linters:
     - intrange
     - ireturn
     - misspell
-    - mnd
     - nlreturn
     - nonamedreturns
     - tagalign
     - tagliatelle
     - varnamelen
     - whitespace
+    - zerologlint
+    - sloglint
+    - noinlineerr # because that's a stupid rule
+    - wsl # replaced by wsl_v5
   settings:
     lll:
       line-length: 120
       tab-width: 2
+    funlen:
+      lines: 0
+      ignore-comments: true
+      statements: 50
+    gocognit:
+      min-complexity: 20
+    gocyclo:
+      min-complexity: 10
+    errcheck:
+      exclude-functions:
+        - (*bytes.Buffer).Write
+        - (*bytes.Buffer).WriteByte
+        - (*bytes.Buffer).WriteRune
+        - (*bytes.Buffer).WriteString
+        - (*strings.Builder).Write
+        - (*strings.Builder).WriteByte
+        - (*strings.Builder).WriteRune
+        - (*strings.Builder).WriteString
+        - (*os.File).Close
     exhaustruct:
       exclude:
         - net/http\.Transport
         - net/http\.Server
         - net/http\.Client
+        - net/url\.URL
         - crypto/tls\.Config
+        - testing/fstest\.MapFile
+    forbidigo:
+      forbid:
+        - pattern: (?i)(^|\.)print(f|ln)?$
+    gomoddirectives:
+      replace-local: true
     gosec:
       config:
-        G306: "0666" # enable to create files with permissions 0666 (before umask) or lesser
+        G306: "0666"
     mnd:
       ignored-functions:
         - os\.(OpenFile|WriteFile|Chmod),p?flag\..*
@@ -52,62 +78,154 @@ linters:
       confidence: 0.8
       enable-all-rules: true
       rules:
-        - name: function-length
+        # ========== ACTIVE REVIVE RULES ==========
+        - name: argument-limit
           arguments:
-            - 50
-            - 0
+            - 6
           severity: warning
+          disabled: false
+        - name: atomic
+          disabled: false
+        - name: blank-imports
+          disabled: false
+        - name: bool-literal-in-expr
+          disabled: false
+        - name: call-to-gc
+          disabled: false
+        - name: confusing-naming
+          disabled: false
+        - name: confusing-results
+          disabled: false
+        - name: constant-logical-expr
+          disabled: false
+        - name: context-keys-type
+          disabled: false
+        - name: deep-exit
+          disabled: false
+        - name: defer
+          disabled: false
+        - name: dot-imports
+          disabled: false
+        - name: duplicated-imports
+          disabled: false
+        - name: early-return
+          disabled: false
+        - name: empty-block
+          disabled: false
+        - name: error-naming
+          disabled: false
+        - name: error-return
+          disabled: false
+        - name: error-strings
+          disabled: false
+        - name: errorf
           disabled: false
         - name: function-result-limit
           arguments:
             - 3
           severity: warning
           disabled: false
-        - name: cognitive-complexity
-          arguments:
-            - 20
-          severity: warning
+        - name: get-return
           disabled: false
-        - name: cyclomatic
-          arguments:
-            - 10
-          severity: warning
+        - name: identical-branches
           disabled: false
-        - name: argument-limit
-          arguments:
-            - 6
-          severity: warning
+        - name: if-return
           disabled: false
-        - name: unhandled-error
-          arguments:
-            - bytes\.Buffer\.Write.*
-            - strings\.Builder\.Write.*
+        - name: imports-blocklist
           disabled: false
-        - name: comment-spacings
+        - name: increment-decrement
+          disabled: false
+        - name: indent-error-flow
+          disabled: false
+        - name: modifies-parameter
+          disabled: false
+        - name: modifies-value-receiver
+          disabled: false
+        - name: nested-structs
+          disabled: false
+        - name: optimize-operands-order
+          disabled: false
+        - name: range
+          disabled: false
+        - name: range-val-address
+          disabled: false
+        - name: receiver-naming
+          disabled: false
+        - name: string-of-int
+          disabled: false
+        - name: superfluous-else
+          disabled: false
+        - name: time-equal
+          disabled: false
+        - name: time-naming
+          disabled: false
+        - name: unexported-naming
+          disabled: false
+        - name: unexported-return
+          disabled: false
+        - name: unnecessary-stmt
+          disabled: false
+        - name: unreachable-code
+          disabled: false
+        - name: unused-receiver
+          disabled: false
+        - name: use-any
+          disabled: false
+        - name: useless-break
+          disabled: false
+        - name: var-declaration
+          disabled: false
+        - name: var-naming
+          disabled: false
+        - name: waitgroup-by-value
+          disabled: false
+
+        # ========== DISABLED - REPLACED BY STANDALONE LINTERS ==========
+        - name: add-constant # can be replaced by goconst
           disabled: true
-        - name: unchecked-type-assertion
+        - name: banned-characters # can be replaced by asciicheck
           disabled: true
-        - name: max-public-structs
+        - name: cognitive-complexity # replaced by gocognit
           disabled: true
-        - name: banned-characters
+        - name: comment-spacings # can be replaced by whitespace
           disabled: true
-        - name: file-header
+        - name: context-as-argument # replaced by contextcheck
+          disabled: true
+        - name: cyclomatic # replaced by gocyclo
+          disabled: true
+        - name: empty-lines # replaced by wsl
+          disabled: true
+        - name: file-header # can be replaced by goheader
+          disabled: true
+        - name: function-length # replaced by funlen
+          disabled: true
+        - name: import-shadowing # can be replaced by gocritic
+          disabled: true
+        - name: line-length-limit # replaced by lll
+          disabled: true
+        - name: range-val-in-closure # can be replaced by copyloopvar
+          disabled: true
+        - name: redefines-builtin-id # replaced by predeclared
+          disabled: true
+        - name: string-format # replaced by staticcheck
+          disabled: true
+        - name: struct-tag # can be replaced by tagliatelle
+          disabled: true
+        - name: unhandled-error # replaced by errcheck
+          disabled: true
+        - name: unused-parameter # replaced by unparam
+          disabled: true
+
+        # ========== DISABLED - PROJECT SPECIFIC REASONS ==========
+        - name: exported # overall annoying linter, maybe configure and re-enable later
           disabled: true
         - name: flag-parameter
           disabled: true
-        - name: struct-tag
-          disabled: true
-        - name: add-constant
-          disabled: true
-        - name: empty-lines
-          disabled: true
-        - name: range-val-in-closure
-          disabled: true
-        - name: line-length-limit # we use lll linter
-          disabled: true
-        - name: exported # overall annoying linter, maybe configure and re-enable later
+        - name: max-public-structs
           disabled: true
         - name: package-comments # interferes with file-level nolint rules
+          disabled: true
+        - name: unchecked-type-assertion
           disabled: true
     testifylint:
       disable:
@@ -120,12 +238,19 @@ linters:
         - ProcessSetupDone
         - ReadInConfig
         - google\.golang\.org/grpc/status\.Error.*\(
-    wsl:
-      force-case-trailing-whitespace: 1
-      allow-trailing-comment: true
-      allow-separated-leading-comment: true
+    wsl_v5:
+      default: all
+      branch-max-lines: 4
+      case-max-lines: 2
+      allow-whole-block: true
+      allow-first-in-block: true
+
 
   exclusions:
+    rules:
+      - path: "_test\\.go"
+        linters:
+          - funlen
     paths:
       - vendor/.* # ignore vendor
       - .*\.gen\.go$ # ignore generated files

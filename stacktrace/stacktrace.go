@@ -39,7 +39,7 @@ func (s *Stack) String() string {
 
 	// Estimate capacity: ~100 bytes per frame on average
 	b := strings.Builder{}
-	b.Grow(len(s.frames) * 100)
+	b.Grow(len(s.frames) * 100) //nolint:mnd
 
 	for i, f := range s.frames {
 		if i > 0 {
