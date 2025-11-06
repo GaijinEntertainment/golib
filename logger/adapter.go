@@ -55,16 +55,3 @@ type Adapter interface {
 	// that occur during flushing.
 	Flush() error
 }
-
-// NopAdapter is a no-op logger adapter that discards all log messages.
-//
-// This adapter is useful for testing or when logging needs to be disabled
-// entirely. All methods are no-ops and return immediately without performing
-// any work.
-type NopAdapter struct{}
-
-func (NopAdapter) Log(int, string, error, ...fields.Field) {}
-
-func (a NopAdapter) WithFields(...fields.Field) Adapter { return a }
-
-func (NopAdapter) Flush() error { return nil }

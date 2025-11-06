@@ -29,28 +29,31 @@ type Logger struct {
 	adapter Adapter
 }
 
-// New creates new [Logger]. Consult [Logger] docs for more info about
-// parameters.
+// New creates new [Logger] with maximum log-level set to LevelInfo and default
+// mappers. To change log level and other behaviours use options.
 func New(adapter Adapter, maxLevel int) Logger {
+	if adapter == nil {
+		panic("logger adapter cannot be nil, use logger.NewNop() to create no-op logger")
+	}
+
 	return Logger{
 		maxLevel: maxLevel,
 		adapter:  adapter,
 	}
 }
 
-// NewNop creates a new logger that does nothing.
+// NewNop creates a new logger that does nothing. Methods creating child-loggers
+// will also create no-op loggers.
 func NewNop() Logger {
 	return Logger{
-		adapter:  NopAdapter{},
-		maxLevel: DefaultLogLevel,
+		maxLevel: math.MaxInt,
+		adapter:  nil,
 	}
 }
 
-// IsNop returns true if the logger's adapter is a [NopAdapter].
+// IsNop returns true if the logger is no-op.
 func (l Logger) IsNop() bool {
-	_, ok := l.adapter.(NopAdapter)
-
-	return ok
+	return l.adapter == nil
 }
 
 // Error logs a message with the [LevelError] log-level.
@@ -129,7 +132,7 @@ func (l Logger) TraceE(msg string, err error, fs ...fields.Field) {
 
 // Log logs a message with given log-level, optional error and fields.
 func (l Logger) Log(level int, msg string, err error, fs ...fields.Field) {
-	if level > l.maxLevel {
+	if level > l.maxLevel || l.IsNop() {
 		return
 	}
 
@@ -138,6 +141,10 @@ func (l Logger) Log(level int, msg string, err error, fs ...fields.Field) {
 
 // WithFields returns a new child-logger with the given fields attached to it.
 func (l Logger) WithFields(fs ...fields.Field) Logger {
+	if l.IsNop() {
+		return l
+	}
+
 	//revive:disable-next-line:modifies-value-receiver
 	l.adapter = l.adapter.WithFields(fs...)
 
@@ -146,6 +153,10 @@ func (l Logger) WithFields(fs ...fields.Field) Logger {
 
 // WithStackTrace returns a new child-logger with the stack trace attached to it.
 func (l Logger) WithStackTrace(_ uint) Logger {
+	if l.IsNop() {
+		return l
+	}
+
 	// ToDo: rework the feature
 	return l
 }
@@ -153,6 +164,9 @@ func (l Logger) WithStackTrace(_ uint) Logger {
 // WithName returns a new child-logger with the given name assigned to it.
 func (l Logger) WithName(_ string) Logger {
 	// ToDo: rework the feature
+	if l.IsNop() {
+		return l
+	}
 	return l
 }
 
@@ -161,6 +175,10 @@ func (l Logger) WithName(_ string) Logger {
 //
 // It is the application's responsibility to call [Logger.Flush] before exiting.
 func (l Logger) Flush() error {
+	if l.IsNop() {
+		return nil
+	}
+
 	return l.adapter.Flush() //nolint:wrapcheck
 }
 
@@ -174,8 +192,8 @@ func (l Logger) IsZero() bool {
 //
 // The function is most usesful for scenarios where loglevel is configured after
 // logger creation, such as in a middlewares.
-func NewErrorLogger(log Logger, level int) e.ErrorLogger {
+func NewErrorLogger(lgr Logger, level int) e.ErrorLogger {
 	return func(msg string, err error, fs ...fields.Field) {
-		log.Log(level, msg, err, fs...)
+		lgr.Log(level, msg, err, fs...)
 	}
 }
