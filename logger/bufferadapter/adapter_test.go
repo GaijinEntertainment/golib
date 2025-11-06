@@ -18,7 +18,7 @@ func Test_New(t *testing.T) {
 	require.NotNil(t, adapter)
 	require.NotNil(t, buff)
 
-	adapter.Log(42, "test", nil)
+	adapter.Log(42, "test")
 	require.Equal(t, 1, buff.Len())
 	assert.Equal(t, "test", buff.Get(0).Msg)
 }
@@ -31,7 +31,7 @@ func TestAdapter(t *testing.T) {
 
 		adapter, buff := bufferadapter.New()
 
-		adapter.Log(42, "foo", nil)
+		adapter.Log(42, "foo")
 		require.Equal(t, 1, buff.Len())
 		assert.Equal(t, bufferadapter.LogEntry{
 			Level: 42,
@@ -39,13 +39,12 @@ func TestAdapter(t *testing.T) {
 		}, buff.Get(0))
 
 		err := e.New("some error")
-		adapter.Log(42, "foo", err, fields.F("foo", "bar"))
+		adapter.Log(42, "foo", fields.F("error", err), fields.F("foo", "bar"))
 		require.Equal(t, 2, buff.Len())
 		assert.Equal(t, bufferadapter.LogEntry{
 			Level:  42,
 			Msg:    "foo",
-			Error:  err,
-			Fields: fields.List{fields.F("foo", "bar")},
+			Fields: fields.List{fields.F("error", err), fields.F("foo", "bar")},
 		}, buff.Get(1))
 
 		buff.Reset()
@@ -60,7 +59,7 @@ func TestAdapter(t *testing.T) {
 
 		require.NotSame(t, adapterSrc, adapter)
 
-		adapter.Log(42, "foo", nil)
+		adapter.Log(42, "foo")
 		require.Equal(t, 1, buff.Len())
 		assert.Equal(t, bufferadapter.LogEntry{
 			Level:  42,
@@ -68,7 +67,7 @@ func TestAdapter(t *testing.T) {
 			Fields: fields.List{fields.F("foo", "bar")},
 		}, buff.Get(0))
 
-		adapter.Log(42, "foo", nil, fields.F("baz", "qux"))
+		adapter.Log(42, "foo", fields.F("baz", "qux"))
 		require.Equal(t, 2, buff.Len())
 		assert.Equal(t, bufferadapter.LogEntry{
 			Level:  42,
@@ -86,9 +85,9 @@ func TestLogEntries(t *testing.T) {
 
 		adapter, buff := bufferadapter.New()
 
-		adapter.Log(10, "first", nil)
-		adapter.Log(20, "second", nil)
-		adapter.Log(30, "third", nil)
+		adapter.Log(10, "first")
+		adapter.Log(20, "second")
+		adapter.Log(30, "third")
 
 		entries := buff.GetAll()
 		require.Len(t, entries, 3)
@@ -113,7 +112,7 @@ func TestLogEntries(t *testing.T) {
 		adapter, buff := bufferadapter.New()
 
 		for i := range 10 {
-			adapter.Log(i, "test", nil)
+			adapter.Log(i, "test")
 		}
 
 		require.Equal(t, 10, buff.Len())

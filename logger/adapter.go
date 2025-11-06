@@ -13,18 +13,15 @@ import (
 //
 // For examples of adapter implementations, see the adapters subpackages.
 type Adapter interface {
-	// Log logs a message with the provided level, message, optional error, and
-	// additional fields. The level parameter is one of the logger level constants
-	// (LevelError, LevelWarning, LevelInfo, LevelDebug, LevelTrace) or a custom
-	// level value.
+	// Log logs a message with the provided level, message, and fields.
 	//
-	// The err parameter may be nil if no error is associated with the log message.
-	// Adapters should handle nil errors gracefully.
+	// The level parameter is one of the logger level constants (LevelError,
+	// LevelWarning, LevelInfo, LevelDebug, LevelTrace) or a custom level value.
 	//
 	// The fs parameter contains zero or more fields that should be attached to the
 	// log entry. This may include both fields from WithFields calls and fields
 	// passed directly to the Log call.
-	Log(level int, msg string, err error, fs ...fields.Field)
+	Log(level int, msg string, fs ...fields.Field)
 
 	// WithFields returns a new adapter instance with the given fields attached.
 	// The returned adapter should include these fields in all subsequent Log calls.

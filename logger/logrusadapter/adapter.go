@@ -65,14 +65,8 @@ func New(lgr *logrus.Entry, opts ...Option) *Adapter {
 }
 
 // Log implements [logger.Adapter.Log].
-func (a *Adapter) Log(level int, msg string, err error, fs ...fields.Field) {
-	lgr := a.lgr
-
-	if err != nil {
-		lgr = lgr.WithError(err)
-	}
-
-	lgr.WithFields(fieldsListToLogrusFields(fs)).Log(a.lvlMapper(level), msg)
+func (a *Adapter) Log(level int, msg string, fs ...fields.Field) {
+	a.lgr.WithFields(fieldsListToLogrusFields(fs)).Log(a.lvlMapper(level), msg)
 }
 
 // WithFields implements [logger.Adapter.WithFields].

@@ -11,7 +11,6 @@ import (
 type LogEntry struct {
 	Level  int
 	Msg    string
-	Error  error       `exhaustruct:"optional"`
 	Fields fields.List `exhaustruct:"optional"`
 }
 
@@ -77,11 +76,10 @@ func New() (*Adapter, *LogEntries) {
 	return &Adapter{buff: buff}, buff
 }
 
-func (a *Adapter) Log(level int, msg string, err error, fs ...fields.Field) {
+func (a *Adapter) Log(level int, msg string, fs ...fields.Field) {
 	e := LogEntry{
 		Level:  level,
 		Msg:    msg,
-		Error:  err,
 		Fields: append(slices.Clone(a.fs), fs...),
 	}
 

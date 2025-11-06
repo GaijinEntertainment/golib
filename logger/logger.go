@@ -1,10 +1,13 @@
 package logger
 
 import (
+	"fmt"
 	"math"
+	"reflect"
 
 	"dev.gaijin.team/go/golib/e"
 	"dev.gaijin.team/go/golib/fields"
+	"dev.gaijin.team/go/golib/stacktrace"
 )
 
 const (
@@ -13,33 +16,180 @@ const (
 	LevelInfo
 	LevelDebug
 	LevelTrace
-
-	DefaultLogLevel = math.MaxInt
 )
+
+// Option is a functional option for configuring [Logger] behavior.
+type Option func(*Logger)
+
+// WithLevel sets the maximum log-level for the logger.
+//
+// Log messages with levels higher than the specified level will be ignored
+// (not passed to the underlying adapter).
+func WithLevel(level int) Option {
+	return func(l *Logger) {
+		l.maxLevel = level
+	}
+}
+
+// mappers holds mapping configurations for [Logger].
+type mappers struct {
+	name       func(name string) fields.Field
+	error      func(err error) fields.Field
+	stackTrace func(st *stacktrace.Stack) fields.Field
+}
+
+type mapperOption func(*mappers)
+
+// withMapperOptions applies mapper options to the logger.
+func withMapperOption(opt mapperOption) Option {
+	return func(l *Logger) {
+		opt(l.mappers)
+	}
+}
+
+// DefaultNameMapper is the default mapper for converting logger names to fields.
+// It creates a field with key "logger-name" and the name as value.
+func DefaultNameMapper(name string) fields.Field {
+	return fields.F("logger-name", name)
+}
+
+// WithNameMapper sets a custom name mapper for the logger.
+//
+// The name mapper controls how logger names (set via [Logger.WithName]) are
+// converted to fields. By default, [DefaultNameMapper] is used, which creates
+// fields with the key "logger-name".
+func WithNameMapper(fn func(name string) fields.Field) Option {
+	return withMapperOption(func(cfg *mappers) {
+		cfg.name = fn
+	})
+}
+
+// DefaultErrorMapper is the default mapper for converting errors to fields.
+// It creates a field with key "error" and the error message string as value.
+//
+// The mapper calls err.Error() to obtain the string representation, which may
+// panic for improperly implemented error types (e.g., nil pointer with value
+// receiver). When this occurs, the mapper recovers and logs either "<nil>" or
+// "<PANIC=...>" with the panic details.
+//
+// Example output:
+//
+//	err := nil                    // "<nil>"
+//	err := errors.New("failed")   // "failed"
+//	err := (*CustomErr)(nil)      // "<nil>" (typed nil)
+//	err := &badErr{}              // "<PANIC=...>" if Error() panics
+func DefaultErrorMapper(err error) (f fields.Field) {
+	const nilErr = "<nil>"
+
+	// we have a possibility of panicking while calling err.Error(), so in order to
+	// keep logging alive and sane we have to recover here.
+	defer func() {
+		if re := recover(); re != nil {
+			// most likely provided error is a nil pointer for value receiver type (famous
+			// nil != nil problem) in this case we just log "<nil>" as error text
+			if v := reflect.ValueOf(err); v.Kind() == reflect.Ptr && v.IsNil() {
+				f.V = nilErr
+				return
+			}
+
+			// otherwise we log the panic info and error value
+			f.V = fmt.Sprintf("<PANIC=%v> %#v", re, err)
+		}
+	}()
+
+	f.K = "error"
+	f.V = nilErr
+
+	if err != nil {
+		f.V = err.Error()
+	}
+
+	return f
+}
+
+// WithErrorMapper sets a custom error mapper for the logger.
+//
+// The error mapper controls how errors passed to logging methods are converted
+// to fields. By default, [DefaultErrorMapper] is used, which creates fields with
+// the key "error" and calls err.Error() to get the string representation.
+//
+// Custom mappers can change the field key, format errors differently, or add
+// additional error information (such as error types or stack traces from error
+// implementations that include them).
+func WithErrorMapper(fn func(err error) fields.Field) Option {
+	return withMapperOption(func(cfg *mappers) {
+		cfg.error = fn
+	})
+}
+
+// DefaultStackTraceMapper is the default mapper for converting stack traces to
+// fields. It creates a field with key "stacktrace" and the stack trace string
+// representation as value.
+//
+// The mapper calls st.String() to obtain the formatted stack trace string.
+func DefaultStackTraceMapper(st *stacktrace.Stack) fields.Field {
+	return fields.F("stacktrace", st.String())
+}
+
+// WithStackTraceMapper sets a custom stack trace mapper for the logger.
+//
+// The stack trace mapper controls how stack traces (captured via
+// [Logger.WithStackTrace]) are converted to fields. By default,
+// [DefaultStackTraceMapper] is used, which creates fields with the key
+// "stacktrace" and formats the stack as a string.
+//
+// Custom mappers can change the field key, format stack traces differently, or
+// limit the number of frames included.
+func WithStackTraceMapper(fn func(st *stacktrace.Stack) fields.Field) Option {
+	return withMapperOption(func(cfg *mappers) {
+		cfg.stackTrace = fn
+	})
+}
+
+// defaultMappers returns a mappers structure initialized with default mappers.
+func defaultMappers() *mappers {
+	return &mappers{
+		name:       DefaultNameMapper,
+		error:      DefaultErrorMapper,
+		stackTrace: DefaultStackTraceMapper,
+	}
+}
 
 type Logger struct {
 	// maxLevel is a maximum log-level of logger, assuming that log-levels are
-	// ordered from the most important to the least important, meaning the higher
-	// log-level value - the less important a log message is.
+	// ordered from the most important to the least important.
 	//
-	// In case log-level is higher than defined maximum, it won't be passed to
-	// adapter.
+	// In case log-level is higher than defined maximum, operation will be no-op.
 	maxLevel int
 
 	adapter Adapter
+
+	// in opposition to logger itself, mappers are used by-pointer since it never
+	// changes and there is no need to copy it on every method call.
+	mappers *mappers
 }
 
 // New creates new [Logger] with maximum log-level set to LevelInfo and default
 // mappers. To change log level and other behaviours use options.
-func New(adapter Adapter, maxLevel int) Logger {
+//
+// Panics if adapter is nil. To create no-op logger use [NewNop].
+func New(adapter Adapter, opts ...Option) Logger {
 	if adapter == nil {
 		panic("logger adapter cannot be nil, use logger.NewNop() to create no-op logger")
 	}
 
-	return Logger{
-		maxLevel: maxLevel,
+	l := Logger{
+		maxLevel: LevelInfo,
 		adapter:  adapter,
+		mappers:  defaultMappers(),
 	}
+
+	lp := &l
+	for _, opt := range opts {
+		opt(lp)
+	}
+
+	return l
 }
 
 // NewNop creates a new logger that does nothing. Methods creating child-loggers
@@ -48,10 +198,16 @@ func NewNop() Logger {
 	return Logger{
 		maxLevel: math.MaxInt,
 		adapter:  nil,
+		mappers:  nil,
 	}
 }
 
-// IsNop returns true if the logger is no-op.
+// IsNop returns true if the logger is a no-op logger.
+//
+// A no-op logger is created via [NewNop] and performs no operations. All
+// logging methods and child logger creation methods return immediately without
+// calling the underlying adapter. This is useful for testing or when a logger
+// is required but logging is not desired.
 func (l Logger) IsNop() bool {
 	return l.adapter == nil
 }
@@ -67,8 +223,9 @@ func (l Logger) Error(msg string, err error, fs ...fields.Field) {
 
 // Warning logs a message with the [LevelWarning] log-level.
 //
-// Use WarningE to log any recoverable error, such as an error during a remote
-// API call where the service did not respond and the application will retry.
+// Use Warning to log any recoverable error or concerning situation that doesn't
+// prevent the application from continuing, such as a deprecated API usage or
+// a retry-able failure. For warnings with an error, use [Logger.WarningE].
 func (l Logger) Warning(msg string, fs ...fields.Field) {
 	l.Log(LevelWarning, msg, nil, fs...)
 }
@@ -130,16 +287,37 @@ func (l Logger) TraceE(msg string, err error, fs ...fields.Field) {
 	l.Log(LevelTrace, msg, err, fs...)
 }
 
-// Log logs a message with given log-level, optional error and fields.
+// Log logs a message with the given log-level, optional error, and fields.
+//
+// The level parameter expected to be one of the logger level constants
+// (LevelError, LevelWarning, LevelInfo, LevelDebug, LevelTrace). Usage of custom
+// levels is also supported, but heavily depends on the underlying adapter
+// capabilities.
+//
+// If the level is higher than the logger's maximum level (set via [WithLevel]),
+// the message is not logged. If err is not nil, it is converted to a field using
+// the error mapper and appended to the provided fields.
+//
+// For no-op loggers, this method returns immediately without any operation.
 func (l Logger) Log(level int, msg string, err error, fs ...fields.Field) {
 	if level > l.maxLevel || l.IsNop() {
 		return
 	}
 
-	l.adapter.Log(level, msg, err, fs...)
+	if err != nil {
+		fs = append(fs, l.mappers.error(err))
+	}
+
+	l.adapter.Log(level, msg, fs...)
 }
 
-// WithFields returns a new child-logger with the given fields attached to it.
+// WithFields returns a new child logger with the given fields attached to it.
+//
+// The returned child logger will include these fields in all subsequent log
+// entries, in addition to any fields already attached to the parent logger.
+// The parent logger remains unaffected.
+//
+// For no-op loggers, this method returns the same no-op logger.
 func (l Logger) WithFields(fs ...fields.Field) Logger {
 	if l.IsNop() {
 		return l
@@ -151,22 +329,42 @@ func (l Logger) WithFields(fs ...fields.Field) Logger {
 	return l
 }
 
+const stackTraceDepth = 32
+
 // WithStackTrace returns a new child-logger with the stack trace attached to it.
-func (l Logger) WithStackTrace(_ uint) Logger {
+// The skip parameter defines how many stack frames to skip when capturing the
+// stack trace. skip=0 means the caller of WithStackTrace is included in the
+// stack trace.
+//
+// For no-op loggers, this method returns the same no-op logger.
+func (l Logger) WithStackTrace(skip int) Logger {
 	if l.IsNop() {
 		return l
 	}
 
-	// ToDo: rework the feature
+	l.adapter = l.adapter.WithFields(l.mappers.stackTrace(
+		stacktrace.Capture(skip+1, stackTraceDepth),
+	))
+
 	return l
 }
 
-// WithName returns a new child-logger with the given name assigned to it.
-func (l Logger) WithName(_ string) Logger {
-	// ToDo: rework the feature
+// WithName returns a new child logger with the given name assigned to it.
+//
+// The name is converted to a field using the name mapper (by default, creates
+// a field with key "logger-name") and attached to all subsequent log entries
+// from this logger. This is useful for identifying which component or module
+// generated a log entry.
+//
+// The parent logger remains unaffected. For no-op loggers, this method returns
+// the same no-op logger.
+func (l Logger) WithName(name string) Logger {
 	if l.IsNop() {
 		return l
 	}
+
+	l.adapter = l.adapter.WithFields(l.mappers.name(name))
+
 	return l
 }
 
@@ -183,15 +381,20 @@ func (l Logger) Flush() error {
 }
 
 // IsZero returns true if the logger is a zero-value structure.
+//
+// A zero-value logger is an uninitialized Logger struct that has not been
+// created via [New] or [NewNop]. Zero-value loggers should not be used, but in
+// rare cases it is required to check if value is not initialized.
 func (l Logger) IsZero() bool {
-	return l.adapter == nil && l.maxLevel == 0
+	return l.adapter == nil && l.maxLevel == 0 && l.mappers == nil
 }
 
-// NewErrorLogger creates new [e.ErrorLogger] that allows to log errors with
+// NewErrorLogger creates a new [e.ErrorLogger] that logs errors with the
 // given log-level.
 //
-// The function is most usesful for scenarios where loglevel is configured after
-// logger creation, such as in a middlewares.
+// This function is useful for scenarios where the log level is configured after
+// logger creation, such as in middleware or when adapting to interfaces that
+// expect an error logging function rather than a full logger.
 func NewErrorLogger(lgr Logger, level int) e.ErrorLogger {
 	return func(msg string, err error, fs ...fields.Field) {
 		lgr.Log(level, msg, err, fs...)

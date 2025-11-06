@@ -71,12 +71,12 @@ func TestAdapter(t *testing.T) {
 		for _, tc := range tt {
 			hook.Reset()
 
-			adapter.Log(tc.level, tc.msg, tc.err)
+			adapter.Log(tc.level, tc.msg, fields.F("error", tc.err))
 
 			require.Len(t, hook, 1)
 			assert.Equal(t, tc.logrusLevel, hook[0].Level)
 			assert.Equal(t, tc.msg, hook[0].Message)
-			assert.Same(t, tc.err, hook[0].Data[logrus.ErrorKey])
+			assert.Same(t, tc.err, hook[0].Data["error"])
 		}
 	})
 
@@ -86,7 +86,7 @@ func TestAdapter(t *testing.T) {
 		hook := logrusHook{}
 		adapter := newAdapter(&hook)
 
-		adapter.Log(42, "unknown level", nil)
+		adapter.Log(42, "unknown level")
 
 		// Should map to InfoLevel by default, creating only ONE entry
 		require.Len(t, hook, 1)
@@ -101,9 +101,9 @@ func TestAdapter(t *testing.T) {
 		hook := logrusHook{}
 		adapter := newAdapter(&hook).WithFields(fields.F("foo", "bar"), fields.F("baz", 42))
 
-		adapter.Log(logger.LevelInfo, "test", nil)
-		adapter.Log(logger.LevelDebug, "test", nil, fields.F("bux", "qux"))
-		adapter.Log(logger.LevelDebug, "test", nil, fields.F("baz", "bar"))
+		adapter.Log(logger.LevelInfo, "test")
+		adapter.Log(logger.LevelDebug, "test", fields.F("bux", "qux"))
+		adapter.Log(logger.LevelDebug, "test", fields.F("baz", "bar"))
 
 		require.Len(t, hook, 3)
 
@@ -131,7 +131,7 @@ func TestAdapter(t *testing.T) {
 		adapter := newAdapter(&hook, logrusadapter.WithLogLevelMapper(customMapper))
 
 		// Log at Info level, but should appear as Error due to custom mapper
-		adapter.Log(logger.LevelInfo, "test", nil)
+		adapter.Log(logger.LevelInfo, "test")
 
 		require.Len(t, hook, 1)
 		assert.Equal(t, logrus.ErrorLevel, hook[0].Level)
@@ -152,8 +152,8 @@ func TestAdapter(t *testing.T) {
 		derived := adapter.WithFields(fields.F("foo", "bar"))
 
 		// Both should use custom mapper
-		adapter.Log(logger.LevelInfo, "original", nil)
-		derived.Log(logger.LevelDebug, "derived", nil)
+		adapter.Log(logger.LevelInfo, "original")
+		derived.Log(logger.LevelDebug, "derived")
 
 		require.Len(t, hook, 2)
 		assert.Equal(t, logrus.WarnLevel, hook[0].Level)

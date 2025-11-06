@@ -17,7 +17,7 @@ func TestLog(t *testing.T) {
 	t.Parallel()
 
 	adapter, buff := bufferadapter.New()
-	log := logger.New(adapter, logger.DefaultLogLevel)
+	log := logger.New(adapter, logger.WithLevel(logger.LevelTrace))
 
 	e1 := errors.New("e1") //nolint:err113
 	e2 := fmt.Errorf("e2: %w", e1)
@@ -35,31 +35,26 @@ func TestLog(t *testing.T) {
 		{
 			Level:  logger.LevelError,
 			Msg:    e1.Error(),
-			Error:  nil,
 			Fields: nil,
 		},
 		{
 			Level:  logger.LevelWarning,
 			Msg:    e1.Error(),
-			Error:  nil,
 			Fields: nil,
 		},
 		{
 			Level:  logger.LevelInfo,
 			Msg:    e2.Error(),
-			Error:  nil,
 			Fields: nil,
 		},
 		{
 			Level:  logger.LevelDebug,
 			Msg:    e3.Reason(),
-			Error:  e1,
-			Fields: e3.Fields(),
+			Fields: fields.List{fields.F("foo", "bar"), fields.F("error", "e1")},
 		},
 		{
 			Level:  logger.LevelTrace,
 			Msg:    e4.Reason(),
-			Error:  nil,
 			Fields: nil,
 		},
 	}, buff.GetAll())

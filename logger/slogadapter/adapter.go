@@ -67,13 +67,13 @@ func New(lgr *slog.Logger, opts ...Option) *Adapter {
 	return a
 }
 
-func (a *Adapter) Log(level int, msg string, err error, fs ...fields.Field) {
-	a.lgr.LogAttrs(context.Background(), a.lvlMapper(level), msg, fieldsListToSlogAttrs(fs, err)...)
+func (a *Adapter) Log(level int, msg string, fs ...fields.Field) {
+	a.lgr.LogAttrs(context.Background(), a.lvlMapper(level), msg, fieldsListToSlogAttrs(fs)...)
 }
 
 func (a *Adapter) WithFields(fs ...fields.Field) logger.Adapter {
 	return &Adapter{
-		lgr:       slog.New(a.lgr.Handler().WithAttrs(fieldsListToSlogAttrs(fs, nil))),
+		lgr:       slog.New(a.lgr.Handler().WithAttrs(fieldsListToSlogAttrs(fs))),
 		lvlMapper: a.lvlMapper,
 	}
 }
@@ -82,24 +82,12 @@ func (*Adapter) Flush() error {
 	return nil
 }
 
-func fieldsListToSlogAttrs(fs fields.List, err error) []slog.Attr {
-	zfs := make([]slog.Attr, 0, len(fs)+boolToInt(err != nil))
-
-	if err != nil {
-		zfs = append(zfs, slog.Any("error", err))
-	}
+func fieldsListToSlogAttrs(fs fields.List) []slog.Attr {
+	zfs := make([]slog.Attr, 0, len(fs))
 
 	for _, f := range fs {
 		zfs = append(zfs, slog.Any(f.K, f.V))
 	}
 
 	return zfs
-}
-
-func boolToInt(v bool) int {
-	if v {
-		return 1
-	}
-
-	return 0
 }

@@ -68,7 +68,7 @@ func TestAdapter(t *testing.T) {
 		for _, tc := range tt {
 			logs.TakeAll()
 
-			adapter.Log(tc.level, tc.msg, tc.err)
+			adapter.Log(tc.level, tc.msg, fields.F("error", tc.err))
 
 			require.Equal(t, 1, logs.Len())
 			assert.Equal(t, tc.zapLevel, logs.All()[0].Level)
@@ -82,7 +82,7 @@ func TestAdapter(t *testing.T) {
 
 		adapter, logs := newAdapter()
 
-		adapter.Log(42, "unknown level", nil)
+		adapter.Log(42, "unknown level")
 
 		// Should map to InfoLevel by default, creating only ONE entry
 		require.Equal(t, 1, logs.Len())
@@ -98,9 +98,9 @@ func TestAdapter(t *testing.T) {
 
 		adapter = adapter.WithFields(fields.F("foo", "bar"), fields.F("baz", 42))
 
-		adapter.Log(logger.LevelInfo, "test", nil)
-		adapter.Log(logger.LevelDebug, "test", nil, fields.F("bux", "qux"))
-		adapter.Log(logger.LevelDebug, "test", nil, fields.F("baz", "bar"))
+		adapter.Log(logger.LevelInfo, "test")
+		adapter.Log(logger.LevelDebug, "test", fields.F("bux", "qux"))
+		adapter.Log(logger.LevelDebug, "test", fields.F("baz", "bar"))
 
 		require.Equal(t, 3, logs.Len())
 
@@ -126,7 +126,7 @@ func TestAdapter(t *testing.T) {
 		adapter, logs := newAdapter(zapadapter.WithLogLevelMapper(customMapper))
 
 		// Log at Info level, but should appear as Error due to custom mapper
-		adapter.Log(logger.LevelInfo, "test", nil)
+		adapter.Log(logger.LevelInfo, "test")
 
 		require.Equal(t, 1, logs.Len())
 		assert.Equal(t, zapcore.ErrorLevel, logs.All()[0].Level)
@@ -145,8 +145,8 @@ func TestAdapter(t *testing.T) {
 		derived := adapter.WithFields(fields.F("foo", "bar"))
 
 		// Both should use custom mapper
-		adapter.Log(logger.LevelInfo, "original", nil)
-		derived.Log(logger.LevelDebug, "derived", nil)
+		adapter.Log(logger.LevelInfo, "original")
+		derived.Log(logger.LevelDebug, "derived")
 
 		require.Equal(t, 2, logs.Len())
 		assert.Equal(t, zapcore.WarnLevel, logs.All()[0].Level)
@@ -158,7 +158,7 @@ func TestAdapter(t *testing.T) {
 		t.Parallel()
 
 		adapter, logs := newAdapter()
-		lgr := logger.New(adapter, logger.LevelError)
+		lgr := logger.New(adapter, logger.WithLevel(logger.LevelError))
 		errorLogger := logger.NewErrorLogger(lgr, logger.LevelError)
 
 		errorLogger("test", errors.New("test"))
