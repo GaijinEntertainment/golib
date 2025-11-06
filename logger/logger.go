@@ -20,7 +20,7 @@ const (
 type Logger struct {
 	// maxLevel is a maximum log-level of logger, assuming that log-levels are
 	// ordered from the most important to the least important, meaning the higher
-	// log-level - the less important a log message is.
+	// log-level value - the less important a log message is.
 	//
 	// In case log-level is higher than defined maximum, it won't be passed to
 	// adapter.
@@ -146,17 +146,13 @@ func (l Logger) WithFields(fs ...fields.Field) Logger {
 
 // WithStackTrace returns a new child-logger with the stack trace attached to it.
 func (l Logger) WithStackTrace(_ uint) Logger {
-	//revive:disable-next-line:modifies-value-receiver
-	l.adapter = l.adapter.WithStackTrace("")
-
+	// ToDo: rework the feature
 	return l
 }
 
 // WithName returns a new child-logger with the given name assigned to it.
-func (l Logger) WithName(name string) Logger {
-	//revive:disable-next-line:modifies-value-receiver
-	l.adapter = l.adapter.WithName(name)
-
+func (l Logger) WithName(_ string) Logger {
+	// ToDo: rework the feature
 	return l
 }
 

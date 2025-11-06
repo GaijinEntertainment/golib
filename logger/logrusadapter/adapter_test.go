@@ -36,35 +36,24 @@ func (h *logrusHook) Reset() {
 	*h = logrusHook{}
 }
 
-func newAdapter(hook *logrusHook) *logrusadapter.Adapter {
+func newAdapter(hook *logrusHook, opts ...logrusadapter.Option) *logrusadapter.Adapter {
 	ll := logrus.New()
 
 	ll.Level = logrus.TraceLevel
 	ll.AddHook(hook)
-
 	ll.SetOutput(&discardingWriter{})
 
-	return logrusadapter.New(logrus.NewEntry(ll))
+	return logrusadapter.New(logrus.NewEntry(ll), opts...)
 }
 
 func TestAdapter(t *testing.T) {
 	t.Parallel()
 
-	t.Run(".Log()", func(t *testing.T) {
+	t.Run(".Log() with standard levels", func(t *testing.T) {
 		t.Parallel()
 
 		hook := logrusHook{}
 		adapter := newAdapter(&hook)
-
-		adapter.Log(42, "foo", nil)
-
-		require.Len(t, hook, 2)
-		assert.Equal(t, logrus.ErrorLevel, hook[0].Level)
-		assert.Nil(t, hook[0].Data[logrus.ErrorKey])
-		assert.Equal(t, logrus.InfoLevel, hook[1].Level)
-		assert.Nil(t, hook[1].Data[logrus.ErrorKey])
-
-		hook.Reset()
 
 		tt := []struct {
 			level       int
@@ -91,6 +80,21 @@ func TestAdapter(t *testing.T) {
 		}
 	})
 
+	t.Run(".Log() with unknown level", func(t *testing.T) {
+		t.Parallel()
+
+		hook := logrusHook{}
+		adapter := newAdapter(&hook)
+
+		adapter.Log(42, "unknown level", nil)
+
+		// Should map to InfoLevel by default, creating only ONE entry
+		require.Len(t, hook, 1)
+		assert.Equal(t, logrus.InfoLevel, hook[0].Level)
+		assert.Equal(t, "unknown level", hook[0].Message)
+		assert.Nil(t, hook[0].Data[logrus.ErrorKey])
+	})
+
 	t.Run(".WithFields()", func(t *testing.T) {
 		t.Parallel()
 
@@ -114,16 +118,46 @@ func TestAdapter(t *testing.T) {
 		assert.Equal(t, "bar", hook[2].Data["baz"])
 	})
 
-	t.Run(".WithName()", func(t *testing.T) {
+	t.Run("WithLogLevelMapper option", func(t *testing.T) {
 		t.Parallel()
 
 		hook := logrusHook{}
-		adapter := newAdapter(&hook).WithName("test-logger")
 
+		// Custom mapper that always returns ErrorLevel
+		customMapper := func(level int) logrus.Level {
+			return logrus.ErrorLevel
+		}
+
+		adapter := newAdapter(&hook, logrusadapter.WithLogLevelMapper(customMapper))
+
+		// Log at Info level, but should appear as Error due to custom mapper
 		adapter.Log(logger.LevelInfo, "test", nil)
 
 		require.Len(t, hook, 1)
+		assert.Equal(t, logrus.ErrorLevel, hook[0].Level)
+		assert.Equal(t, "test", hook[0].Message)
+	})
 
-		assert.Equal(t, "test-logger", hook[0].Data[logrusadapter.LoggerNameKey])
+	t.Run("custom mapper preserved in derived adapters", func(t *testing.T) {
+		t.Parallel()
+
+		hook := logrusHook{}
+
+		// Custom mapper that maps everything to WarnLevel
+		customMapper := func(level int) logrus.Level {
+			return logrus.WarnLevel
+		}
+
+		adapter := newAdapter(&hook, logrusadapter.WithLogLevelMapper(customMapper))
+		derived := adapter.WithFields(fields.F("foo", "bar"))
+
+		// Both should use custom mapper
+		adapter.Log(logger.LevelInfo, "original", nil)
+		derived.Log(logger.LevelDebug, "derived", nil)
+
+		require.Len(t, hook, 2)
+		assert.Equal(t, logrus.WarnLevel, hook[0].Level)
+		assert.Equal(t, logrus.WarnLevel, hook[1].Level)
+		assert.Equal(t, "bar", hook[1].Data["foo"])
 	})
 }

@@ -78,8 +78,8 @@ func (h *bufferHandler) WithGroup(name string) slog.Handler {
 	}
 }
 
-func newAdapter(buf *entriesBuffer) *slogadapter.Adapter {
-	return slogadapter.New(slog.New(&bufferHandler{buf: buf})) //nolint:exhaustruct
+func newAdapter(buf *entriesBuffer, opts ...slogadapter.Option) *slogadapter.Adapter {
+	return slogadapter.New(slog.New(&bufferHandler{buf: buf}), opts...) //nolint:exhaustruct
 }
 
 const errorKey = "error"
@@ -87,21 +87,11 @@ const errorKey = "error"
 func TestAdapter(t *testing.T) {
 	t.Parallel()
 
-	t.Run("Log", func(t *testing.T) {
+	t.Run(".Log() with standard levels", func(t *testing.T) {
 		t.Parallel()
 
 		buf := entriesBuffer{}
 		adapter := newAdapter(&buf)
-
-		adapter.Log(42, "foo", nil)
-
-		require.Len(t, buf, 2)
-		assert.Equal(t, slog.LevelError, buf[0].Level)
-		assert.Nil(t, buf[0].Attrs[errorKey])
-		assert.Equal(t, slog.LevelInfo, buf[1].Level)
-		assert.Nil(t, buf[1].Attrs[errorKey])
-
-		buf.Reset()
 
 		tt := []struct {
 			level     int
@@ -128,7 +118,22 @@ func TestAdapter(t *testing.T) {
 		}
 	})
 
-	t.Run("WithFields", func(t *testing.T) {
+	t.Run(".Log() with unknown level", func(t *testing.T) {
+		t.Parallel()
+
+		buf := entriesBuffer{}
+		adapter := newAdapter(&buf)
+
+		adapter.Log(42, "unknown level", nil)
+
+		// Should map to InfoLevel by default, creating only ONE entry
+		require.Len(t, buf, 1)
+		assert.Equal(t, slog.LevelInfo, buf[0].Level)
+		assert.Equal(t, "unknown level", buf[0].Message)
+		assert.Nil(t, buf[0].Attrs[errorKey])
+	})
+
+	t.Run(".WithFields()", func(t *testing.T) {
 		t.Parallel()
 
 		buf := entriesBuffer{}
@@ -151,16 +156,46 @@ func TestAdapter(t *testing.T) {
 		assert.Equal(t, "bar", buf[2].Attrs["baz"])
 	})
 
-	t.Run("WithName", func(t *testing.T) {
+	t.Run("WithLogLevelMapper option", func(t *testing.T) {
 		t.Parallel()
 
 		buf := entriesBuffer{}
-		adapter := newAdapter(&buf).WithName("test-logger")
 
+		// Custom mapper that always returns ErrorLevel
+		customMapper := func(level int) slog.Level {
+			return slog.LevelError
+		}
+
+		adapter := newAdapter(&buf, slogadapter.WithLogLevelMapper(customMapper))
+
+		// Log at Info level, but should appear as Error due to custom mapper
 		adapter.Log(logger.LevelInfo, "test", nil)
 
 		require.Len(t, buf, 1)
+		assert.Equal(t, slog.LevelError, buf[0].Level)
+		assert.Equal(t, "test", buf[0].Message)
+	})
 
-		assert.Equal(t, "test-logger", buf[0].Group)
+	t.Run("custom mapper preserved in derived adapters", func(t *testing.T) {
+		t.Parallel()
+
+		buf := entriesBuffer{}
+
+		// Custom mapper that maps everything to WarnLevel
+		customMapper := func(level int) slog.Level {
+			return slog.LevelWarn
+		}
+
+		adapter := newAdapter(&buf, slogadapter.WithLogLevelMapper(customMapper))
+		derived := adapter.WithFields(fields.F("foo", "bar"))
+
+		// Both should use custom mapper
+		adapter.Log(logger.LevelInfo, "original", nil)
+		derived.Log(logger.LevelDebug, "derived", nil)
+
+		require.Len(t, buf, 2)
+		assert.Equal(t, slog.LevelWarn, buf[0].Level)
+		assert.Equal(t, slog.LevelWarn, buf[1].Level)
+		assert.Equal(t, "bar", buf[1].Attrs["foo"])
 	})
 }

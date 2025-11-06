@@ -56,45 +56,25 @@ func TestAdapter(t *testing.T) {
 		t.Parallel()
 
 		adapterSrc, buff := bufferadapter.New()
-		adapter := adapterSrc.WithName("my-logger").WithFields(fields.F("foo", "bar"))
+		adapter := adapterSrc.WithFields(fields.F("foo", "bar"))
 
 		require.NotSame(t, adapterSrc, adapter)
 
 		adapter.Log(42, "foo", nil)
 		require.Equal(t, 1, buff.Len())
 		assert.Equal(t, bufferadapter.LogEntry{
-			LoggerName: "my-logger",
-			Level:      42,
-			Msg:        "foo",
-			Fields:     fields.List{fields.F("foo", "bar")},
+			Level:  42,
+			Msg:    "foo",
+			Fields: fields.List{fields.F("foo", "bar")},
 		}, buff.Get(0))
 
 		adapter.Log(42, "foo", nil, fields.F("baz", "qux"))
 		require.Equal(t, 2, buff.Len())
 		assert.Equal(t, bufferadapter.LogEntry{
-			LoggerName: "my-logger",
-			Level:      42,
-			Msg:        "foo",
-			Fields:     fields.List{fields.F("foo", "bar"), fields.F("baz", "qux")},
+			Level:  42,
+			Msg:    "foo",
+			Fields: fields.List{fields.F("foo", "bar"), fields.F("baz", "qux")},
 		}, buff.Get(1))
-	})
-
-	t.Run(".WithName()", func(t *testing.T) {
-		t.Parallel()
-
-		adapterSrc, buff := bufferadapter.New()
-		adapter := adapterSrc.WithFields(fields.F("foo", "bar")).WithName("my-logger")
-
-		require.NotSame(t, adapterSrc, adapter)
-
-		adapter.Log(42, "foo", nil)
-		require.Equal(t, 1, buff.Len())
-		assert.Equal(t, bufferadapter.LogEntry{
-			LoggerName: "my-logger",
-			Level:      42,
-			Msg:        "foo",
-			Fields:     fields.List{fields.F("foo", "bar")},
-		}, buff.Get(0))
 	})
 }
 

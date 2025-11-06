@@ -7,80 +7,83 @@ import (
 	"dev.gaijin.team/go/golib/logger"
 )
 
-type logrusF func(*logrus.Entry, ...any)
-type logMapper [logger.LevelTrace + 1]logrusF
+type Option func(*Adapter)
 
-//nolint:gochecknoglobals
-var mapper logMapper
+// LogLevelMapper is a function that maps logger levels from
+// [logger.Logger] to [logrus.Level].
+type LogLevelMapper func(level int) logrus.Level
 
-//nolint:gochecknoinits
-func init() {
-	mapper[logger.LevelError] = (*logrus.Entry).Error
-	mapper[logger.LevelWarning] = (*logrus.Entry).Warn
-	mapper[logger.LevelInfo] = (*logrus.Entry).Info
-	mapper[logger.LevelDebug] = (*logrus.Entry).Debug
-	mapper[logger.LevelTrace] = (*logrus.Entry).Trace
+// WithLogLevelMapper sets custom log level mapper for the adapter.
+func WithLogLevelMapper(fn LogLevelMapper) Option {
+	return func(a *Adapter) {
+		a.lvlMapper = fn
+	}
 }
 
-const LoggerNameKey = "logger"
+// DefaultLogLevelMapper is a default implementation of [LogLevelMapper] that
+// maps log levels from [logger.Logger] to appropriate [logrus.Level].
+func DefaultLogLevelMapper(level int) logrus.Level {
+	switch level {
+	case logger.LevelError:
+		return logrus.ErrorLevel
+	case logger.LevelWarning:
+		return logrus.WarnLevel
+	case logger.LevelDebug:
+		return logrus.DebugLevel
+	case logger.LevelTrace:
+		return logrus.TraceLevel
+
+	default:
+		return logrus.InfoLevel
+	}
+}
 
 // Adapter of logrus logger for [logger.Logger].
 //
 // This adapter guarantees support of stock logger's levels.
 type Adapter struct {
 	lgr *logrus.Entry
+
+	lvlMapper LogLevelMapper `exhaustruct:"optional"`
 }
 
 // New creates new logging adapter using provided [logrus.Entry].
-//
-// Note, that by the contract of [logger.Logger], adapter should not perform
-// level-filtering internally - it is done by [logger.Logger] itself.
-func New(lgr *logrus.Entry) *Adapter {
-	return &Adapter{
+func New(lgr *logrus.Entry, opts ...Option) *Adapter {
+	a := &Adapter{
 		lgr: lgr,
 	}
+
+	for _, opt := range opts {
+		opt(a)
+	}
+
+	if a.lvlMapper == nil {
+		a.lvlMapper = DefaultLogLevelMapper
+	}
+
+	return a
 }
 
+// Log implements [logger.Adapter.Log].
 func (a *Adapter) Log(level int, msg string, err error, fs ...fields.Field) {
 	lgr := a.lgr
-
-	var lf logrusF
-
-	if level < len(mapper) {
-		lf = mapper[level]
-	}
-
-	if lf == nil {
-		lf = (*logrus.Entry).Info
-
-		lgr.WithField("got-level", level).Error("Unknown log level")
-	}
 
 	if err != nil {
 		lgr = lgr.WithError(err)
 	}
 
-	lf(lgr.WithFields(fieldsListToLogrusFields(fs)), msg)
+	lgr.WithFields(fieldsListToLogrusFields(fs)).Log(a.lvlMapper(level), msg)
 }
 
+// WithFields implements [logger.Adapter.WithFields].
 func (a *Adapter) WithFields(fs ...fields.Field) logger.Adapter {
 	return &Adapter{
-		lgr: a.lgr.WithFields(fieldsListToLogrusFields(fs)),
+		lgr:       a.lgr.WithFields(fieldsListToLogrusFields(fs)),
+		lvlMapper: a.lvlMapper,
 	}
 }
 
-// WithName returns a logger adapter with the given name attached to it. As
-// logrus does not support logger names, this adds [LoggerNameKey] field.
-func (a *Adapter) WithName(name string) logger.Adapter {
-	return &Adapter{
-		lgr: a.lgr.WithField(LoggerNameKey, name),
-	}
-}
-
-func (a *Adapter) WithStackTrace(_ string) logger.Adapter {
-	return a
-}
-
+// Flush implements [logger.Adapter.Flush].
 func (*Adapter) Flush() error {
 	return nil
 }

@@ -8,61 +8,74 @@ import (
 	"dev.gaijin.team/go/golib/logger"
 )
 
+type Option func(*Adapter)
+
+// LogLevelMapper is a function that maps logger levels from
+// [logger.Logger] to [slog.Level].
+type LogLevelMapper func(level int) slog.Level
+
+// WithLogLevelMapper sets custom log level mapper for the adapter.
+func WithLogLevelMapper(fn LogLevelMapper) Option {
+	return func(a *Adapter) {
+		a.lvlMapper = fn
+	}
+}
+
+// DefaultLogLevelMapper is a default implementation of [LogLevelMapper] that
+// maps log levels from [logger.Logger] to appropriate [slog.Level].
+//
+// Note that slog does not have a separate trace level, so both LevelDebug and
+// LevelTrace map to slog.LevelDebug.
+func DefaultLogLevelMapper(level int) slog.Level {
+	switch level {
+	case logger.LevelError:
+		return slog.LevelError
+	case logger.LevelWarning:
+		return slog.LevelWarn
+	case logger.LevelDebug,
+		logger.LevelTrace:
+		return slog.LevelDebug
+
+	default:
+		return slog.LevelInfo
+	}
+}
+
 // Adapter of slog logger for [logger.Logger].
 //
 // This adapter guarantees support of stock logger's levels.
 type Adapter struct {
 	lgr *slog.Logger
+
+	lvlMapper LogLevelMapper `exhaustruct:"optional"`
 }
 
 // New creates new logging adapter using provided [slog.Logger].
-//
-// Note, that by the contract of [logger.Logger], adapter should not perform
-// level-filtering internally - it is done by [logger.Logger] itself.
-func New(lgr *slog.Logger) *Adapter {
-	return &Adapter{
+func New(lgr *slog.Logger, opts ...Option) *Adapter {
+	a := &Adapter{
 		lgr: lgr,
 	}
+
+	for _, opt := range opts {
+		opt(a)
+	}
+
+	if a.lvlMapper == nil {
+		a.lvlMapper = DefaultLogLevelMapper
+	}
+
+	return a
 }
 
 func (a *Adapter) Log(level int, msg string, err error, fs ...fields.Field) {
-	sl := slog.LevelInfo
-
-	switch level {
-	case logger.LevelError:
-		sl = slog.LevelError
-
-	case logger.LevelWarning:
-		sl = slog.LevelWarn
-
-	case logger.LevelInfo:
-		sl = slog.LevelInfo
-
-	case logger.LevelDebug,
-		logger.LevelTrace:
-		sl = slog.LevelDebug
-
-	default:
-		a.lgr.Error("Unknown log level", slog.Int("got-level", level))
-	}
-
-	a.lgr.LogAttrs(context.Background(), sl, msg, fieldsListToSlogAttrs(fs, err)...)
+	a.lgr.LogAttrs(context.Background(), a.lvlMapper(level), msg, fieldsListToSlogAttrs(fs, err)...)
 }
 
 func (a *Adapter) WithFields(fs ...fields.Field) logger.Adapter {
 	return &Adapter{
-		lgr: slog.New(a.lgr.Handler().WithAttrs(fieldsListToSlogAttrs(fs, nil))),
+		lgr:       slog.New(a.lgr.Handler().WithAttrs(fieldsListToSlogAttrs(fs, nil))),
+		lvlMapper: a.lvlMapper,
 	}
-}
-
-func (a *Adapter) WithName(name string) logger.Adapter {
-	return &Adapter{
-		lgr: a.lgr.WithGroup(name),
-	}
-}
-
-func (a *Adapter) WithStackTrace(_ string) logger.Adapter {
-	return a
 }
 
 func (*Adapter) Flush() error {

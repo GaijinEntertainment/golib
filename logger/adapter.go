@@ -4,37 +4,67 @@ import (
 	"dev.gaijin.team/go/golib/fields"
 )
 
-// Adapter is an interface that allows to encapsulate any logger inside [Logger].
+// Adapter is an interface that allows to encapsulate any logger backend inside
+// [Logger].
+//
+// Adapters provide a bridge between the logger abstraction and concrete logging
+// implementations (zap, logrus, slog, etc.). They handle the translation of
+// logger's generic API calls to backend-specific operations.
+//
+// For examples of adapter implementations, see the adapters subpackages.
 type Adapter interface {
-	// Log logs a message with the provided level, message, optional error, and an
-	// arbitrary number of fields.
+	// Log logs a message with the provided level, message, optional error, and
+	// additional fields. The level parameter is one of the logger level constants
+	// (LevelError, LevelWarning, LevelInfo, LevelDebug, LevelTrace) or a custom
+	// level value.
+	//
+	// The err parameter may be nil if no error is associated with the log message.
+	// Adapters should handle nil errors gracefully.
+	//
+	// The fs parameter contains zero or more fields that should be attached to the
+	// log entry. This may include both fields from WithFields calls and fields
+	// passed directly to the Log call.
 	Log(level int, msg string, err error, fs ...fields.Field)
 
-	// WithFields returns a logger adapter with the given fields attached to it.
+	// WithFields returns a new adapter instance with the given fields attached.
+	// The returned adapter should include these fields in all subsequent Log calls.
+	//
+	// This method must return a new adapter instance and must not modify the
+	// original adapter.
+	//
+	// Rationale:
+	//
+	// Although it might look unnecessary to alter the adapter instead of carrying
+	// fields in the logger itself, this design allows adapters to optimize field
+	// handling based on their backend capabilities.
+	//
+	// Some logging backends may support efficient field storage and reuse, while
+	// others may require fields to be passed with each log call. For example zap
+	// pre-encodes fields and then reuses encoded values, instead of encoding them
+	// each time a log entry is created.
+	//
+	// By attaching fields to the adapter, we enable adapters to implement the
+	// most efficient strategy for their backend.
 	WithFields(fs ...fields.Field) Adapter
 
-	// WithName returns a logger adapter with the given name attached to it.
-	WithName(name string) Adapter
-
-	// WithStackTrace returns a logger adapter with the stack trace attached to it.
-	WithStackTrace(trace string) Adapter
-
-	// Flush all logs to the output. It is a no-op for non-buffered loggers.
+	// Flush flushes any buffered log entries to the output. This is a no-op for
+	// non-buffered loggers.
 	//
-	// It is application's responsibility to call this method before it exits.
+	// It is the application's responsibility to call [Logger.Flush] before exiting
+	// to ensure all log entries are written. Adapters should return any errors
+	// that occur during flushing.
 	Flush() error
 }
 
-// NopAdapter is a no-op logger adapter, it does nothing even if any of its
-// methods called.
+// NopAdapter is a no-op logger adapter that discards all log messages.
+//
+// This adapter is useful for testing or when logging needs to be disabled
+// entirely. All methods are no-ops and return immediately without performing
+// any work.
 type NopAdapter struct{}
 
 func (NopAdapter) Log(int, string, error, ...fields.Field) {}
 
 func (a NopAdapter) WithFields(...fields.Field) Adapter { return a }
-
-func (a NopAdapter) WithName(string) Adapter { return a }
-
-func (a NopAdapter) WithStackTrace(string) Adapter { return a }
 
 func (NopAdapter) Flush() error { return nil }
