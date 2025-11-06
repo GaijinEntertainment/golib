@@ -16,8 +16,8 @@ import (
 func TestLog(t *testing.T) {
 	t.Parallel()
 
-	entries := make(bufferadapter.LogEntries, 0)
-	log := logger.New(bufferadapter.New(&entries), logger.DefaultLogLevel)
+	adapter, buff := bufferadapter.New()
+	log := logger.New(adapter, logger.DefaultLogLevel)
 
 	e1 := errors.New("e1") //nolint:err113
 	e2 := fmt.Errorf("e2: %w", e1)
@@ -31,7 +31,7 @@ func TestLog(t *testing.T) {
 	e.Log(e3, log.DebugE)
 	e.Log(e4, log.TraceE)
 
-	assert.Equal(t, bufferadapter.LogEntries{
+	assert.Equal(t, []bufferadapter.LogEntry{
 		{
 			LoggerName: "",
 			Level:      logger.LevelError,
@@ -67,5 +67,5 @@ func TestLog(t *testing.T) {
 			Error:      nil,
 			Fields:     nil,
 		},
-	}, entries)
+	}, buff.GetAll())
 }

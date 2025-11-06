@@ -2,6 +2,7 @@ package bufferadapter
 
 import (
 	"slices"
+	"sync"
 
 	"dev.gaijin.team/go/golib/fields"
 	"dev.gaijin.team/go/golib/logger"
@@ -15,26 +16,67 @@ type LogEntry struct {
 	Fields     fields.List `exhaustruct:"optional"`
 }
 
-type LogEntries []LogEntry
-
-func (le *LogEntries) Reset() {
-	*le = LogEntries{}
+// LogEntries is a buffer for storing log entries in memory. It is safe for
+// concurrent use.
+type LogEntries struct {
+	mu      sync.RWMutex `exhaustruct:"optional"`
+	entries []LogEntry   `exhaustruct:"optional"`
 }
 
-// Adapter is a logger.Adapter that writes logs to the provided [LogEntries]
-// slice.
-//
-// This adapter is designed for testing purposes and is not intended for
-// production use.
+// Add appends a log entry.
+func (le *LogEntries) Add(entry LogEntry) {
+	le.mu.Lock()
+	defer le.mu.Unlock()
+
+	le.entries = append(le.entries, entry)
+}
+
+// Reset clears all log entries, preserving capacity.
+func (le *LogEntries) Reset() {
+	le.mu.Lock()
+	defer le.mu.Unlock()
+
+	le.entries = le.entries[:0]
+}
+
+// Len returns the number of log entries.
+func (le *LogEntries) Len() int {
+	le.mu.RLock()
+	defer le.mu.RUnlock()
+	return len(le.entries)
+}
+
+// Get returns a copy of the log entry at the given index.
+// Panics if index is out of range.
+func (le *LogEntries) Get(i int) LogEntry {
+	le.mu.RLock()
+	defer le.mu.RUnlock()
+	return le.entries[i]
+}
+
+// GetAll returns a copy of log entries buffer.
+func (le *LogEntries) GetAll() []LogEntry {
+	le.mu.RLock()
+	defer le.mu.RUnlock()
+	return slices.Clone(le.entries)
+}
+
+// Adapter is a logger.Adapter implementation that writes logs to the provided
+// [LogEntries] collection.
 type Adapter struct {
-	buff *LogEntries
+	buff *LogEntries `exhaustruct:"optional"`
 	name string      `exhaustruct:"optional"`
 	fs   fields.List `exhaustruct:"optional"`
 }
 
-// New creates a new [Adapter] instance.
-func New(buff *LogEntries) *Adapter {
-	return &Adapter{buff: buff}
+// New creates a new [Adapter] instance along with a new [LogEntries] buffer that
+// will be used by adapter.
+func New() (*Adapter, *LogEntries) {
+	buff := &LogEntries{
+		entries: make([]LogEntry, 0),
+	}
+
+	return &Adapter{buff: buff}, buff
 }
 
 func (a *Adapter) Log(level int, msg string, err error, fs ...fields.Field) {
@@ -43,11 +85,10 @@ func (a *Adapter) Log(level int, msg string, err error, fs ...fields.Field) {
 		Level:      level,
 		Msg:        msg,
 		Error:      err,
+		Fields:     append(slices.Clone(a.fs), fs...),
 	}
 
-	e.Fields = append(slices.Clone(a.fs), fs...)
-
-	*a.buff = append(*a.buff, e)
+	a.buff.Add(e)
 }
 
 func (a *Adapter) WithFields(fs ...fields.Field) logger.Adapter {
