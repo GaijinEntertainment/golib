@@ -387,7 +387,7 @@ func (l Logger) WithStackTrace(skip int) Logger {
 	}
 
 	l.adapter = l.adapter.WithFields(l.mappers.stackTrace(
-		stacktrace.Capture(skip+1, stackTraceDepth),
+		stacktrace.CaptureStack(skip+1, stackTraceDepth),
 	))
 
 	return l

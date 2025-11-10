@@ -6,7 +6,6 @@ import (
 	"math"
 	"runtime"
 	"strconv"
-	"strings"
 )
 
 // Frame represents a single stack frame containing program counter, file path,
@@ -83,13 +82,13 @@ func (f Frame) Write(b *bytes.Buffer) {
 
 // Stack represents a captured call stack consisting of program counter frames.
 type Stack struct {
-	frames []runtime.Frame
+	frames []Frame
 }
 
 // Frames returns an iterator over the stack frames.
 // The iterator yields (index, frame) pairs for each frame in the stack.
-func (s *Stack) Frames() iter.Seq2[int, runtime.Frame] {
-	return func(yield func(int, runtime.Frame) bool) {
+func (s *Stack) Frames() iter.Seq2[int, Frame] {
+	return func(yield func(int, Frame) bool) {
 		for i, frame := range s.frames {
 			if !yield(i, frame) {
 				break
@@ -111,38 +110,49 @@ func (s *Stack) String() string {
 	}
 
 	// Estimate capacity: ~100 bytes per frame on average
-	b := strings.Builder{}
-	b.Grow(len(s.frames) * 100) //nolint:mnd
+	b := bytes.NewBuffer(make([]byte, 0, len(s.frames)*100)) //nolint:mnd
 
 	for i, f := range s.frames {
 		if i > 0 {
 			b.WriteRune('\n')
 		}
 
-		WriteFrameToBuffer(f, &b)
+		f.Write(b)
 	}
 
 	return b.String()
 }
 
-// WriteFrameToBuffer formats a single runtime.Frame and writes it to the
-// provided buffer. The frame is formatted as "function\n\tfile:line".
-func WriteFrameToBuffer(f runtime.Frame, b *strings.Builder) {
-	b.WriteString(f.Function)
-	b.WriteString("\n\t")
-	b.WriteString(f.File)
-	b.WriteRune(':')
-	b.WriteString(strconv.Itoa(f.Line))
-}
-
 // DefaultDepth is the default maximum number of stack frames to capture.
 const DefaultDepth = 64
 
-// Capture captures the current goroutine's call stack. The skip argument
+// CaptureCaller captures a single caller frame from the current goroutine's call
+// stack. The skip argument specifies the number of frames to skip before
+// recording (0 means the direct caller of CaptureCaller).
+//
+// This is more efficient than CaptureStack when only the immediate caller information
+// is needed, as it only captures and processes a single frame.
+func CaptureCaller(skip int) Frame {
+	skip += 2 // we don't want current function and runtime.Callers to get to trace
+
+	var pcs [1]uintptr
+
+	n := runtime.Callers(skip, pcs[:])
+
+	if n == 0 {
+		return Frame{} //nolint:exhaustruct
+	}
+
+	runtimeFrame, _ := runtime.CallersFrames(pcs[:n]).Next()
+
+	return NewFrame(runtimeFrame)
+}
+
+// CaptureStack captures the current goroutine's call stack. The skip argument
 // specifies the number of frames to skip before recording (0 means start at
 // caller). The depth argument specifies the maximum number of frames to capture
 // (use math.MaxInt for unlimited).
-func Capture(skip, depth int) *Stack {
+func CaptureStack(skip, depth int) *Stack {
 	skip++ // we don't want current function to get to trace
 
 	var pcs []uintptr
@@ -152,13 +162,13 @@ func Capture(skip, depth int) *Stack {
 		pcs = callersFinite(skip, depth)
 	}
 
-	stack := &Stack{frames: make([]runtime.Frame, 0, len(pcs))}
+	stack := &Stack{frames: make([]Frame, 0, len(pcs))}
 	frames := runtime.CallersFrames(pcs)
 
 	for {
 		frame, next := frames.Next()
 
-		stack.frames = append(stack.frames, frame)
+		stack.frames = append(stack.frames, NewFrame(frame))
 
 		if !next {
 			break

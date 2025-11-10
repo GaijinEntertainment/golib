@@ -1,7 +1,6 @@
 package stacktrace_test
 
 import (
-	"bytes"
 	"math"
 	"runtime"
 	"strings"
@@ -63,7 +62,7 @@ func TestFrame(t *testing.T) {
 		assert.Equal(t, "undefined", fullPath)
 	})
 
-	t.Run("Write formats correctly", func(t *testing.T) {
+	t.Run("String formats correctly", func(t *testing.T) {
 		t.Parallel()
 
 		frame := stacktrace.Frame{
@@ -73,14 +72,10 @@ func TestFrame(t *testing.T) {
 			Function: "main.run",
 		}
 
-		buf := &bytes.Buffer{}
-		frame.Write(buf)
-
-		expected := "main.run\n\t/Users/test/main.go:100"
-		assert.Equal(t, expected, buf.String())
+		assert.Equal(t, "main.run\n\t/Users/test/main.go:100", frame.String())
 	})
 
-	t.Run("Write handles zero PC", func(t *testing.T) {
+	t.Run("String handles zero PC", func(t *testing.T) {
 		t.Parallel()
 
 		frame := stacktrace.Frame{
@@ -90,16 +85,13 @@ func TestFrame(t *testing.T) {
 			Function: "package.Function",
 		}
 
-		buf := &bytes.Buffer{}
-		frame.Write(buf)
-
-		assert.Equal(t, "undefined", buf.String())
+		assert.Equal(t, "undefined", frame.String())
 	})
 }
 
 func recursionA(i, depth int) *stacktrace.Stack {
 	if i == 0 {
-		return stacktrace.Capture(0, depth)
+		return stacktrace.CaptureStack(0, depth)
 	}
 
 	fn := recursionB
@@ -112,7 +104,7 @@ func recursionA(i, depth int) *stacktrace.Stack {
 
 func recursionB(i, depth int) *stacktrace.Stack {
 	if i == 0 {
-		return stacktrace.Capture(0, depth)
+		return stacktrace.CaptureStack(0, depth)
 	}
 
 	fn := recursionB
@@ -123,16 +115,19 @@ func recursionB(i, depth int) *stacktrace.Stack {
 	return fn(i-1, depth)
 }
 
-func TestCapture(t *testing.T) {
+func TestCaptureStack(t *testing.T) {
 	t.Parallel()
+
+	assert.Empty(t, new(stacktrace.Stack).String(), "empty stack should produce empty string")
 
 	t.Run("shallow stack", func(t *testing.T) {
 		t.Parallel()
 
 		// Capture a very shallow stack with only 2 frames
-		s := stacktrace.Capture(0, 2)
+		s := stacktrace.CaptureStack(0, 2)
 		require.Equal(t, 2, s.Len())
 
+		// Test through the .String function to also check stringification validity.
 		str := s.String()
 		require.NotEmpty(t, str)
 
@@ -141,7 +136,7 @@ func TestCapture(t *testing.T) {
 		require.Len(t, lines, 4, "should have 4 lines: func1, location1, func2, location2")
 
 		// First frame: function name (the current test function)
-		require.Contains(t, lines[0], "TestCapture", "first frame should be test function")
+		require.Contains(t, lines[0], "TestCaptureStack", "first frame should be test function")
 		require.Contains(t, lines[0], "stacktrace_test", "first frame should be in stacktrace_test package")
 
 		// First frame: location (starts with tab)
@@ -192,5 +187,44 @@ func TestCapture(t *testing.T) {
 		}
 
 		require.Equal(t, s.Len(), count, "iterator should yield same number of frames as Len()")
+	})
+}
+
+func TestCaptureCaller(t *testing.T) {
+	t.Parallel()
+
+	t.Run("captures direct caller", func(t *testing.T) {
+		t.Parallel()
+
+		frame := stacktrace.CaptureCaller(0)
+		require.NotEmpty(t, frame.Function, "should capture function name")
+		require.Contains(t, frame.Function, "TestCaptureCaller", "should contain test function name")
+		require.NotEmpty(t, frame.File, "should capture file path")
+		require.Contains(t, frame.File, "stacktrace_test.go", "should be from test file")
+		require.Positive(t, frame.Line, "should have positive line number")
+	})
+
+	t.Run("skip parameter works", func(t *testing.T) {
+		t.Parallel()
+
+		// CaptureStack from this test directly with different skip values
+		frame0 := stacktrace.CaptureCaller(0)
+		require.Contains(t, frame0.Function, "TestCaptureCaller", "skip=0 should capture test function")
+
+		// Use helper to test skip=1
+		helperFunc := func() stacktrace.Frame {
+			return stacktrace.CaptureCaller(1) // skip=1 skips helper, captures test
+		}
+
+		frame1 := helperFunc()
+		require.Contains(t, frame1.Function, "TestCaptureCaller", "skip=1 should skip helper and capture test")
+	})
+
+	t.Run("returns empty frame when no caller", func(t *testing.T) {
+		t.Parallel()
+
+		// Very large skip should result in empty frame
+		frame := stacktrace.CaptureCaller(1000)
+		require.Empty(t, frame.Function, "should return empty frame for too-large skip")
 	})
 }
