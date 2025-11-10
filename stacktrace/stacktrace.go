@@ -1,12 +1,85 @@
 package stacktrace
 
 import (
+	"bytes"
 	"iter"
 	"math"
 	"runtime"
 	"strconv"
 	"strings"
 )
+
+// Frame represents a single stack frame containing program counter, file path,
+// line number, and function name.
+//
+// This is a simplified representation of runtime.Frame that is safe to store and
+// use after the stack trace has been captured.
+type Frame struct {
+	// PC is the program counter for this frame.
+	PC uintptr
+	// File is the full path to the source file.
+	File string
+	// Line is the line number in the source file.
+	Line int
+	// Function is the name of the function.
+	Function string
+}
+
+// NewFrame creates a Frame from a runtime.Frame, copying the essential fields.
+func NewFrame(f runtime.Frame) Frame {
+	return Frame{
+		PC:       f.PC,
+		File:     f.File,
+		Line:     f.Line,
+		Function: f.Function,
+	}
+}
+
+// FullPath returns the full file path and line number formatted as
+// "/path/to/file:line". Returns "undefined" if the frame has a zero PC.
+func (f Frame) FullPath() string {
+	b := &bytes.Buffer{}
+	f.WriteFullPath(b)
+	return b.String()
+}
+
+// WriteFullPath writes the full file path and line number of the frame to the
+// provided buffer in the format "/path/to/file:line". If the PC is zero, it writes
+// "undefined".
+func (f Frame) WriteFullPath(b *bytes.Buffer) {
+	if f.PC == 0 {
+		b.WriteString("undefined")
+		return
+	}
+
+	b.WriteString(f.File)
+	b.WriteByte(':')
+	b.WriteString(strconv.Itoa(f.Line))
+}
+
+// String returns a formatted representation of the frame including function
+// name and source location. Returns "undefined" if the frame has a zero PC.
+func (f Frame) String() string {
+	b := &bytes.Buffer{}
+	f.Write(b)
+	return b.String()
+}
+
+// Write writes the function name and source location of the frame to the
+// provided buffer in the format "function\n\t/path/to/file:line". If the PC is
+// zero, it writes "undefined".
+func (f Frame) Write(b *bytes.Buffer) {
+	if f.PC == 0 {
+		b.WriteString("undefined")
+		return
+	}
+
+	b.WriteString(f.Function)
+	b.WriteString("\n\t")
+	b.WriteString(f.File)
+	b.WriteByte(':')
+	b.WriteString(strconv.Itoa(f.Line))
+}
 
 // Stack represents a captured call stack consisting of program counter frames.
 type Stack struct {

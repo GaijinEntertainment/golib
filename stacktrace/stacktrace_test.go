@@ -1,14 +1,101 @@
 package stacktrace_test
 
 import (
+	"bytes"
 	"math"
+	"runtime"
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"dev.gaijin.team/go/golib/stacktrace"
 )
+
+func TestFrame(t *testing.T) {
+	t.Parallel()
+
+	t.Run("NewFrame copies necessary fields", func(t *testing.T) {
+		t.Parallel()
+
+		// Capture a real frame
+		var pcs [1]uintptr
+
+		n := runtime.Callers(1, pcs[:])
+		require.Equal(t, 1, n, "should capture one frame")
+
+		runtimeFrame, _ := runtime.CallersFrames(pcs[:]).Next()
+
+		frame := stacktrace.NewFrame(runtimeFrame)
+
+		assert.Equal(t, runtimeFrame.PC, frame.PC, "PC should match")
+		assert.Equal(t, runtimeFrame.File, frame.File, "File should match")
+		assert.Equal(t, runtimeFrame.Line, frame.Line, "Line should match")
+		assert.Equal(t, runtimeFrame.Function, frame.Function, "Function should match")
+	})
+
+	t.Run("FullPath formats correctly", func(t *testing.T) {
+		t.Parallel()
+
+		frame := stacktrace.Frame{
+			PC:       1,
+			File:     "/path/to/file.go",
+			Line:     42,
+			Function: "package.Function",
+		}
+
+		fullPath := frame.FullPath()
+		assert.Equal(t, "/path/to/file.go:42", fullPath)
+	})
+
+	t.Run("FullPath handles zero PC", func(t *testing.T) {
+		t.Parallel()
+
+		frame := stacktrace.Frame{
+			PC:       0,
+			File:     "/path/to/file.go",
+			Line:     42,
+			Function: "package.Function",
+		}
+
+		fullPath := frame.FullPath()
+		assert.Equal(t, "undefined", fullPath)
+	})
+
+	t.Run("Write formats correctly", func(t *testing.T) {
+		t.Parallel()
+
+		frame := stacktrace.Frame{
+			PC:       1,
+			File:     "/Users/test/main.go",
+			Line:     100,
+			Function: "main.run",
+		}
+
+		buf := &bytes.Buffer{}
+		frame.Write(buf)
+
+		expected := "main.run\n\t/Users/test/main.go:100"
+		assert.Equal(t, expected, buf.String())
+	})
+
+	t.Run("Write handles zero PC", func(t *testing.T) {
+		t.Parallel()
+
+		frame := stacktrace.Frame{
+			PC:       0,
+			File:     "/path/to/file.go",
+			Line:     42,
+			Function: "package.Function",
+		}
+
+		buf := &bytes.Buffer{}
+		frame.Write(buf)
+
+		assert.Equal(t, "undefined", buf.String())
+	})
+}
 
 func recursionA(i, depth int) *stacktrace.Stack {
 	if i == 0 {
