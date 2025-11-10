@@ -32,7 +32,7 @@ func TestToAndFromCtx(t *testing.T) {
 		lgrCtx, ok := logger.FromCtx(ctxLogger)
 		assert.True(t, ok, "should return true for context with logger")
 		assert.False(t, lgrCtx.IsZero(), "should not return zero-value logger for context with logger")
-		assert.Equal(t, lgr, lgrCtx, "should return same logger as stored in context")
+		assert.True(t, logger.IsEqual(lgr, lgrCtx), "should return same logger as stored in context")
 	}
 }
 
@@ -53,6 +53,6 @@ func TestFromCtxOrNop(t *testing.T) {
 	{
 		lgrCtx := logger.FromCtxOrNop(ctxLogger)
 		assert.False(t, lgrCtx.IsNop(), "should not return nop logger for context with logger")
-		assert.Equal(t, lgr, lgrCtx, "should return same logger as stored in context")
+		assert.True(t, logger.IsEqual(lgr, lgrCtx), "should return same logger as stored in context")
 	}
 }

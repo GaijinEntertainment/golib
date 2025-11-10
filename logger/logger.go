@@ -64,6 +64,39 @@ func WithNameMapper(fn func(name string) fields.Field) Option {
 	})
 }
 
+// NameFormatterHierarchical is the default formatter for combining new logger name
+// with existing, using `:` separator (e.g., "parent:child").
+func NameFormatterHierarchical(prev, next string) string {
+	const sep = ":"
+
+	if prev == "" {
+		return next
+	}
+
+	return prev + sep + next
+}
+
+// NameFormatterReplaced is a name formatter that always replaces the previous
+// name with the new name.
+func NameFormatterReplaced(_, next string) string {
+	return next
+}
+
+// WithNameFormatter sets a custom name formatter for the logger.
+//
+// The name formatter controls how logger names are combined when
+// [Logger.WithName] is called multiple times on a logger chain. By default,
+// [NameFormatterHierarchical] is used.
+//
+// Custom formatters can implement hierarchical naming (e.g., "parent:child") or
+// other naming strategies. The formatter receives the previous name (empty
+// string if no name was set) and the next name, and returns the final name.
+func WithNameFormatter(fn func(prev, next string) string) Option {
+	return func(l *Logger) {
+		l.nameFormatter = fn
+	}
+}
+
 // DefaultErrorMapper is the default mapper for converting errors to fields.
 // It creates a field with key "error" and the error message string as value.
 //
@@ -167,6 +200,9 @@ type Logger struct {
 	// in opposition to logger itself, mappers are used by-pointer since it never
 	// changes and there is no need to copy it on every method call.
 	mappers *mappers
+
+	name          string
+	nameFormatter func(prev, next string) string
 }
 
 // New creates new [Logger] with maximum log-level set to LevelInfo and default
@@ -179,9 +215,11 @@ func New(adapter Adapter, opts ...Option) Logger {
 	}
 
 	l := Logger{
-		maxLevel: LevelInfo,
-		adapter:  adapter,
-		mappers:  defaultMappers(),
+		maxLevel:      LevelInfo,
+		adapter:       adapter,
+		mappers:       defaultMappers(),
+		name:          "",
+		nameFormatter: NameFormatterHierarchical,
 	}
 
 	lp := &l
@@ -196,9 +234,11 @@ func New(adapter Adapter, opts ...Option) Logger {
 // will also create no-op loggers.
 func NewNop() Logger {
 	return Logger{
-		maxLevel: math.MaxInt,
-		adapter:  nil,
-		mappers:  nil,
+		maxLevel:      math.MaxInt,
+		adapter:       nil,
+		mappers:       nil,
+		name:          "",
+		nameFormatter: nil,
 	}
 }
 
@@ -304,6 +344,10 @@ func (l Logger) Log(level int, msg string, err error, fs ...fields.Field) {
 		return
 	}
 
+	if l.name != "" {
+		fs = append(fs, l.mappers.name(l.name))
+	}
+
 	if err != nil {
 		fs = append(fs, l.mappers.error(err))
 	}
@@ -356,6 +400,10 @@ func (l Logger) WithStackTrace(skip int) Logger {
 // from this logger. This is useful for identifying which component or module
 // generated a log entry.
 //
+// When called multiple times on a logger chain, the name formatter (set via
+// [WithNameFormatter]) determines how names are combined. By default, names
+// are concatenated with a `:` separator (e.g., "parent:child").
+//
 // The parent logger remains unaffected. For no-op loggers, this method returns
 // the same no-op logger.
 func (l Logger) WithName(name string) Logger {
@@ -363,7 +411,8 @@ func (l Logger) WithName(name string) Logger {
 		return l
 	}
 
-	l.adapter = l.adapter.WithFields(l.mappers.name(name))
+	//revive:disable-next-line:modifies-value-receiver
+	l.name = l.nameFormatter(l.name, name)
 
 	return l
 }
@@ -387,6 +436,30 @@ func (l Logger) Flush() error {
 // rare cases it is required to check if value is not initialized.
 func (l Logger) IsZero() bool {
 	return l.adapter == nil && l.maxLevel == 0 && l.mappers == nil
+}
+
+// formatterIsEqual checks if f1 is equal to f2.
+func formatterIsEqual(f1, f2 func(string, string) string) bool {
+	if f1 == nil && f2 == nil {
+		return true
+	}
+
+	if f1 == nil || f2 == nil {
+		return false
+	}
+
+	return reflect.ValueOf(f1).Pointer() == reflect.ValueOf(f2).Pointer()
+}
+
+// IsEqual returns true if two loggers are functionally equal. Two loggers are
+// considered equal if they have the same maxLevel, adapter, mappers, name, and
+// nameFormatter.
+func IsEqual(l1, l2 Logger) bool {
+	return l1.maxLevel == l2.maxLevel &&
+		l1.adapter == l2.adapter &&
+		l1.name == l2.name &&
+		l1.mappers == l2.mappers &&
+		formatterIsEqual(l1.nameFormatter, l2.nameFormatter)
 }
 
 // NewErrorLogger creates a new [e.ErrorLogger] that logs errors with the

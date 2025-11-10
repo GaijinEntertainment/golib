@@ -84,6 +84,22 @@ func TestMappers(t *testing.T) {
 	assert.NotZero(t, entry2.Fields.ToDict()["stacktrace"], "should have stacktrace field")
 }
 
+func TestNameFormatterHierarchical(t *testing.T) {
+	t.Parallel()
+
+	assert.Empty(t, logger.NameFormatterHierarchical("", ""))
+	assert.Equal(t, "prev:", logger.NameFormatterHierarchical("prev", ""))
+	assert.Equal(t, "next", logger.NameFormatterHierarchical("", "next"))
+	assert.Equal(t, "prev:next", logger.NameFormatterHierarchical("prev", "next"))
+	assert.Equal(t, "prev:next:other", logger.NameFormatterHierarchical("prev:next", "other"))
+}
+
+func TestNameFormatterReplaced(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, "next", logger.NameFormatterReplaced("prev", "next"))
+}
+
 func TestNopLogger(t *testing.T) {
 	t.Parallel()
 
@@ -417,18 +433,16 @@ func TestLogger(t *testing.T) {
 		assert.Contains(t, adapter.shared.logCalls[0].fields, fields.F("key2", 42))
 	})
 
-	t.Run("with_name_calls_adapter_with_name_field", func(t *testing.T) {
+	t.Run("with_name_prepends_name_field_to_logs", func(t *testing.T) {
 		t.Parallel()
 
 		adapter := newTrackingAdapter()
 		lgr := logger.New(adapter)
 
-		childLgr := lgr.WithName("test-logger")
+		childLgr := lgr.WithFields(fields.F("foo", "bar")).WithName("test-logger")
 		childLgr.Info("test message")
 
-		require.Len(t, adapter.shared.withFieldsCalls, 1, "should have 1 WithFields call for name")
-		assert.Contains(t, adapter.shared.withFieldsCalls[0].fields, fields.F("logger-name", "test-logger"))
-
+		require.Len(t, adapter.shared.withFieldsCalls, 1)
 		require.Len(t, adapter.shared.logCalls, 1)
 		assert.Contains(t, adapter.shared.logCalls[0].fields, fields.F("logger-name", "test-logger"))
 	})
@@ -476,10 +490,10 @@ func TestLogger(t *testing.T) {
 
 		childLgr.Info("test message", fields.F("key3", "value3"))
 
-		require.Len(t, adapter.shared.withFieldsCalls, 3, "should have 3 WithFields calls")
+		require.Len(t, adapter.shared.withFieldsCalls, 2, "should have 2 WithFields calls")
 
 		require.Len(t, adapter.shared.logCalls, 1)
-		// All fields should be accumulated
+		// All fields should be accumulated including the logger name
 		assert.Contains(t, adapter.shared.logCalls[0].fields, fields.F("key1", "value1"))
 		assert.Contains(t, adapter.shared.logCalls[0].fields, fields.F("logger-name", "test-logger"))
 		assert.Contains(t, adapter.shared.logCalls[0].fields, fields.F("key2", "value2"))
@@ -525,4 +539,104 @@ func TestLogger(t *testing.T) {
 		assert.Contains(t, adapter.shared.logCalls[1].fields, fields.F("child", "field"))
 		assert.Contains(t, adapter.shared.logCalls[1].fields, fields.F("another", "field"))
 	})
+}
+
+func TestLogger_IsEqual(t *testing.T) {
+	t.Parallel()
+
+	adapter1, _ := bufferadapter.New()
+	adapter2, _ := bufferadapter.New()
+
+	parent := logger.New(adapter1)
+	lgr1 := logger.New(adapter1)
+
+	nameFormatter := func(prev, next string) string {
+		if prev == "" {
+			return next
+		}
+		return prev + "/" + next
+	}
+
+	tests := []struct {
+		name     string
+		l1       logger.Logger
+		l2       logger.Logger
+		expected bool
+	}{
+		{
+			name:     "same_logger_is_equal",
+			l1:       lgr1,
+			l2:       lgr1,
+			expected: true,
+		},
+		{
+			name:     "different_maxLevel",
+			l1:       logger.New(adapter1, logger.WithLevel(logger.LevelInfo)),
+			l2:       logger.New(adapter1, logger.WithLevel(logger.LevelDebug)),
+			expected: false,
+		},
+		{
+			name:     "different_adapter",
+			l1:       logger.New(adapter1),
+			l2:       logger.New(adapter2),
+			expected: false,
+		},
+		{
+			name:     "different_name",
+			l1:       logger.New(adapter1).WithName("logger1"),
+			l2:       logger.New(adapter1).WithName("logger2"),
+			expected: false,
+		},
+		{
+			name:     "same_name_from_parent",
+			l1:       parent.WithName("test-logger"),
+			l2:       parent.WithName("test-logger"),
+			expected: true,
+		},
+		{
+			name:     "child_equal_to_itself",
+			l1:       parent.WithName("test-logger"),
+			l2:       parent.WithName("test-logger"),
+			expected: true,
+		},
+		{
+			name:     "different_mappers_not_equal",
+			l1:       logger.New(adapter1),
+			l2:       logger.New(adapter1),
+			expected: false,
+		},
+		{
+			name:     "children_different_names_not_equal",
+			l1:       parent.WithName("child1"),
+			l2:       parent.WithName("child2"),
+			expected: false,
+		},
+		{
+			name:     "children_different_formatters_not_equal",
+			l1:       logger.New(adapter1).WithName("child"),
+			l2:       logger.New(adapter1, logger.WithNameFormatter(nameFormatter)).WithName("child"),
+			expected: false,
+		},
+		{
+			name:     "nop_loggers_are_equal",
+			l1:       logger.NewNop(),
+			l2:       logger.NewNop(),
+			expected: true,
+		},
+		{
+			name:     "child_loggers_with_fields_different_adapters",
+			l1:       parent.WithFields(fields.F("key", "value")),
+			l2:       parent.WithFields(fields.F("key", "value")),
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			result := logger.IsEqual(tt.l1, tt.l2)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
 }

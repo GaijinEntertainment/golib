@@ -64,6 +64,12 @@
 //	dbLogger := lgr.WithName("database")
 //	dbLogger.Info("connection established")  // includes logger-name: database
 //
+//	// Build hierarchical names by chaining WithName calls
+//	// By default, names are joined with ":" separator
+//	serviceLogger := lgr.WithName("service")
+//	handlerLogger := serviceLogger.WithName("handler")
+//	handlerLogger.Info("processing")  // includes logger-name: service:handler
+//
 //	// Attach stack trace to debug issues
 //	lgr.WithStackTrace(0).Error("unexpected error", err)
 //
@@ -88,7 +94,7 @@
 //
 // To create a custom adapter, implement the [logger.Adapter] interface.
 //
-// # Customization with Mappers
+// # Customization with Mappers and Formatters
 //
 // Though the logger supports concepts of logger names, errors logging and stack
 // traces, etc. - different logging backends may have different conventions for
@@ -105,6 +111,18 @@
 //		return fields.F("component", name)  // Use "component" instead of "logger-name"
 //	}))
 //
+// Name Formatter: Controls how logger names are combined when WithName is called
+// multiple times. By default, uses NameFormatterHierarchical which joins names
+// with ":" separator. Use NameFormatterReplaced to replace names instead:
+//
+//	// Hierarchical naming (default): "service:handler:method"
+//	lgr := logger.New(adapter)
+//	lgr.WithName("service").WithName("handler").WithName("method")
+//
+//	// Replacement naming: only "method"
+//	lgr := logger.New(adapter, logger.WithNameFormatter(logger.NameFormatterReplaced))
+//	lgr.WithName("service").WithName("handler").WithName("method")
+//
 // Error Mapper: Converts errors to fields. By default, creates a field with
 // key "error" and calls err.Error() to get the string representation. The
 // default mapper includes panic recovery for improperly implemented error types:
@@ -120,7 +138,8 @@
 //		return fields.F("stack", st.String())  // Use "stack" instead of "stacktrace"
 //	}))
 //
-// All three mappers can be customized independently during logger creation.
+// All mappers and formatters can be customized independently during logger
+// creation.
 //
 // # No-Op Logger
 //
