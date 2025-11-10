@@ -31,11 +31,29 @@ func WithLevel(level int) Option {
 	}
 }
 
+// WithCallerAtLevel enables automatic caller information capture for log
+// entries with level less or equal passed threshold.
+//
+// When enabled, the logger will automatically capture and include caller
+// information (formatted as "/path/to/file:line") as a field in log entries whose
+// level is less or equal the threshold. For example, WithCallerAtLevel(LevelWarning)
+// will add caller information to Error and Warning logs, but no others.
+//
+// By default, automatic caller capture is disabled. Use this option when you
+// need to track the source location of important log messages like errors and
+// warnings.
+func WithCallerAtLevel(level int) Option {
+	return func(l *Logger) {
+		l.callerMaxLevel = level
+	}
+}
+
 // mappers holds mapping configurations for [Logger].
 type mappers struct {
 	name       func(name string) fields.Field
 	error      func(err error) fields.Field
 	stackTrace func(st *stacktrace.Stack) fields.Field
+	caller     func(frame stacktrace.Frame) fields.Field
 }
 
 type mapperOption func(*mappers)
@@ -179,12 +197,37 @@ func WithStackTraceMapper(fn func(st *stacktrace.Stack) fields.Field) Option {
 	})
 }
 
+// DefaultCallerMapper is the default mapper for converting caller frames to
+// fields. It creates a field with key "caller" and formats the frame as
+// "file:line".
+//
+// Example output: "/path/to/logger.go:123".
+func DefaultCallerMapper(frame stacktrace.Frame) fields.Field {
+	return fields.F("caller", frame.FullPath())
+}
+
+// WithCallerMapper sets a custom caller mapper for the logger.
+//
+// The caller mapper controls how caller frames (captured via automatic caller
+// capture with [WithCallerAtLevel]) are converted to fields. By default,
+// [DefaultCallerMapper] is used, which creates fields with the key "caller"
+// and formats frames as "file:line".
+//
+// Custom mappers can change the field key, format caller information
+// differently, or include additional frame details like function names.
+func WithCallerMapper(fn func(frame stacktrace.Frame) fields.Field) Option {
+	return withMapperOption(func(cfg *mappers) {
+		cfg.caller = fn
+	})
+}
+
 // defaultMappers returns a mappers structure initialized with default mappers.
 func defaultMappers() *mappers {
 	return &mappers{
 		name:       DefaultNameMapper,
 		error:      DefaultErrorMapper,
 		stackTrace: DefaultStackTraceMapper,
+		caller:     DefaultCallerMapper,
 	}
 }
 
@@ -203,6 +246,11 @@ type Logger struct {
 
 	name          string
 	nameFormatter func(prev, next string) string
+
+	// callerMaxLevel is the maximum log-level at which caller information is
+	// automatically captured and added to log entries. Levels at or below this
+	// threshold will include caller information. Set to -1 to disable.
+	callerMaxLevel int
 }
 
 // New creates new [Logger] with maximum log-level set to LevelInfo and default
@@ -215,11 +263,12 @@ func New(adapter Adapter, opts ...Option) Logger {
 	}
 
 	l := Logger{
-		maxLevel:      LevelInfo,
-		adapter:       adapter,
-		mappers:       defaultMappers(),
-		name:          "",
-		nameFormatter: NameFormatterHierarchical,
+		maxLevel:       LevelInfo,
+		adapter:        adapter,
+		mappers:        defaultMappers(),
+		name:           "",
+		nameFormatter:  NameFormatterHierarchical,
+		callerMaxLevel: math.MinInt,
 	}
 
 	lp := &l
@@ -234,11 +283,12 @@ func New(adapter Adapter, opts ...Option) Logger {
 // will also create no-op loggers.
 func NewNop() Logger {
 	return Logger{
-		maxLevel:      math.MaxInt,
-		adapter:       nil,
-		mappers:       nil,
-		name:          "",
-		nameFormatter: nil,
+		maxLevel:       math.MaxInt,
+		adapter:        nil,
+		mappers:        nil,
+		name:           "",
+		nameFormatter:  nil,
+		callerMaxLevel: math.MinInt,
 	}
 }
 
@@ -258,7 +308,7 @@ func (l Logger) IsNop() bool {
 // where the application cannot continue. It's OK to pass nil as the error.
 // To attach a stack trace, use [Logger.WithStackTrace].
 func (l Logger) Error(msg string, err error, fs ...fields.Field) {
-	l.Log(LevelError, msg, err, fs...)
+	l.log(LevelError, msg, err, fs...)
 }
 
 // Warning logs a message with the [LevelWarning] log-level.
@@ -267,7 +317,7 @@ func (l Logger) Error(msg string, err error, fs ...fields.Field) {
 // prevent the application from continuing, such as a deprecated API usage or
 // a retry-able failure. For warnings with an error, use [Logger.WarningE].
 func (l Logger) Warning(msg string, fs ...fields.Field) {
-	l.Log(LevelWarning, msg, nil, fs...)
+	l.log(LevelWarning, msg, nil, fs...)
 }
 
 // WarningE logs a message with the [LevelWarning] log-level and the provided
@@ -276,7 +326,7 @@ func (l Logger) Warning(msg string, fs ...fields.Field) {
 // Use WarningE to log any recoverable error, such as an error during a remote
 // API call where the service did not respond and the application will retry.
 func (l Logger) WarningE(msg string, err error, fs ...fields.Field) {
-	l.Log(LevelWarning, msg, err, fs...)
+	l.log(LevelWarning, msg, err, fs...)
 }
 
 // Info logs a message with the [LevelInfo] log-level.
@@ -284,7 +334,7 @@ func (l Logger) WarningE(msg string, err error, fs ...fields.Field) {
 // Use Info to log informational messages that highlight the progress of the
 // application.
 func (l Logger) Info(msg string, fs ...fields.Field) {
-	l.Log(LevelInfo, msg, nil, fs...)
+	l.log(LevelInfo, msg, nil, fs...)
 }
 
 // InfoE logs a message with the [LevelInfo] log-level and the provided error.
@@ -292,7 +342,7 @@ func (l Logger) Info(msg string, fs ...fields.Field) {
 // Use InfoE to log informational messages that highlight the progress of the
 // application along with an error.
 func (l Logger) InfoE(msg string, err error, fs ...fields.Field) {
-	l.Log(LevelInfo, msg, err, fs...)
+	l.log(LevelInfo, msg, err, fs...)
 }
 
 // Debug logs a message with the [LevelDebug] log-level.
@@ -300,7 +350,7 @@ func (l Logger) InfoE(msg string, err error, fs ...fields.Field) {
 // Use Debug to log detailed information that is useful during development and
 // debugging.
 func (l Logger) Debug(msg string, fs ...fields.Field) {
-	l.Log(LevelDebug, msg, nil, fs...)
+	l.log(LevelDebug, msg, nil, fs...)
 }
 
 // DebugE logs a message with the [LevelDebug] log-level and the provided error.
@@ -308,7 +358,7 @@ func (l Logger) Debug(msg string, fs ...fields.Field) {
 // Use DebugE to log detailed information that is useful during development and
 // debugging along with an error.
 func (l Logger) DebugE(msg string, err error, fs ...fields.Field) {
-	l.Log(LevelDebug, msg, err, fs...)
+	l.log(LevelDebug, msg, err, fs...)
 }
 
 // Trace logs a message with the [LevelTrace] log-level.
@@ -316,7 +366,7 @@ func (l Logger) DebugE(msg string, err error, fs ...fields.Field) {
 // Use Trace to log very detailed information, typically of interest only when
 // diagnosing problems.
 func (l Logger) Trace(msg string, fs ...fields.Field) {
-	l.Log(LevelTrace, msg, nil, fs...)
+	l.log(LevelTrace, msg, nil, fs...)
 }
 
 // TraceE logs a message with the [LevelTrace] log-level and the provided error.
@@ -324,7 +374,7 @@ func (l Logger) Trace(msg string, fs ...fields.Field) {
 // Use TraceE to log very detailed information, typically of interest only when
 // diagnosing problems along with an error.
 func (l Logger) TraceE(msg string, err error, fs ...fields.Field) {
-	l.Log(LevelTrace, msg, err, fs...)
+	l.log(LevelTrace, msg, err, fs...)
 }
 
 // Log logs a message with the given log-level, optional error, and fields.
@@ -340,8 +390,24 @@ func (l Logger) TraceE(msg string, err error, fs ...fields.Field) {
 //
 // For no-op loggers, this method returns immediately without any operation.
 func (l Logger) Log(level int, msg string, err error, fs ...fields.Field) {
+	l.log(level, msg, err, fs...)
+}
+
+// log is the internal logging method, its sole reason to exist is to uniformly
+// catch caller frame in case it is required.
+//
+//revive:disable-next-line:confusing-naming
+func (l Logger) log(level int, msg string, err error, fs ...fields.Field) {
 	if level > l.maxLevel || l.IsNop() {
 		return
+	}
+
+	if level <= l.callerMaxLevel {
+		const callerSkip = 2 // skip log and the calling method (Error, Info, etc.)
+
+		frame := stacktrace.CaptureCaller(callerSkip)
+
+		fs = append(fs, l.mappers.caller(frame))
 	}
 
 	if l.name != "" {
@@ -435,7 +501,9 @@ func (l Logger) Flush() error {
 // created via [New] or [NewNop]. Zero-value loggers should not be used, but in
 // rare cases it is required to check if value is not initialized.
 func (l Logger) IsZero() bool {
-	return l.adapter == nil && l.maxLevel == 0 && l.mappers == nil
+	// properly created loggers have adapters set and callerMaxLevel initialized,
+	// therefore check for those fields should suffice.
+	return l.adapter == nil && l.callerMaxLevel == 0
 }
 
 // formatterIsEqual checks if f1 is equal to f2.
@@ -470,6 +538,6 @@ func IsEqual(l1, l2 Logger) bool {
 // expect an error logging function rather than a full logger.
 func NewErrorLogger(lgr Logger, level int) e.ErrorLogger {
 	return func(msg string, err error, fs ...fields.Field) {
-		lgr.Log(level, msg, err, fs...)
+		lgr.log(level, msg, err, fs...)
 	}
 }

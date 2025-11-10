@@ -42,6 +42,24 @@
 //
 //	lgr := logger.New(adapter, logger.WithLevel(logger.LevelDebug))
 //
+// # Automatic Caller Capture
+//
+// The logger can automatically capture and include caller information (file and
+// line number) for log entries at or below a specified level threshold. This is
+// useful for tracking the source location of important log messages like errors
+// and warnings without manually adding caller information.
+//
+// Enable automatic caller capture using WithCallerAtLevel:
+//
+//	// Capture caller for Error and Warning logs only
+//	lgr := logger.New(adapter, logger.WithCallerAtLevel(logger.LevelWarning))
+//	lgr.Error("operation failed", err)  // includes caller: "/path/to/file.go:123"
+//	lgr.Info("processing")               // no caller information
+//
+// By default, automatic caller capture is disabled. When enabled, the caller
+// information is formatted and added as a field to log entries using the caller
+// mapper (see Customization section below).
+//
 // Each level has two methods: one without an error parameter (Info, Warning,
 // Debug, Trace) and one with an error parameter (InfoE, WarningE, DebugE,
 // TraceE). The Error is, obviously, singular and has the error parameter, though
@@ -102,7 +120,7 @@
 // For that reason logger abstracts these concepts passing it to the adapters as
 // fields, with the help of mappers.
 //
-// The logger provides three types of mappers:
+// The logger provides four types of mappers:
 //
 // Name Mapper: Converts logger names (from WithName) to fields. By default,
 // creates a field with key "logger-name":
@@ -137,6 +155,17 @@
 //	lgr := logger.New(adapter, logger.WithStackTraceMapper(func(st *stacktrace.Stack) fields.Field {
 //		return fields.F("stack", st.String())  // Use "stack" instead of "stacktrace"
 //	}))
+//
+// Caller Mapper: Converts caller frames (from automatic caller capture) to
+// fields. By default, creates a field with key "caller" formatted as
+// "file:line":
+//
+//	lgr := logger.New(adapter,
+//		logger.WithCallerAtLevel(logger.LevelError),  // Enable automatic capture
+//		logger.WithCallerMapper(func(frame stacktrace.Frame) fields.Field {
+//			return fields.F("source", frame.ShortPath())  // Use "source" and short path
+//		}),
+//	)
 //
 // All mappers and formatters can be customized independently during logger
 // creation.

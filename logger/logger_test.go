@@ -624,6 +624,12 @@ func TestLogger_IsEqual(t *testing.T) {
 			expected: true,
 		},
 		{
+			name:     "nop_and_zero_are_not_equal",
+			l1:       logger.NewNop(),
+			l2:       logger.Logger{},
+			expected: false,
+		},
+		{
 			name:     "child_loggers_with_fields_different_adapters",
 			l1:       parent.WithFields(fields.F("key", "value")),
 			l2:       parent.WithFields(fields.F("key", "value")),
@@ -639,4 +645,119 @@ func TestLogger_IsEqual(t *testing.T) {
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+func TestCallerMapper(t *testing.T) {
+	t.Parallel()
+
+	t.Run("default_caller_mapper", func(t *testing.T) {
+		t.Parallel()
+
+		adapter, buff := bufferadapter.New()
+		lgr := logger.New(adapter, logger.WithCallerAtLevel(logger.LevelWarning))
+
+		// Error should include caller
+		lgr.Error("error message", nil)
+
+		entries := buff.GetAll()
+		require.Len(t, entries, 1)
+
+		// Check caller field exists
+		callerField := entries[0].Fields.ToDict()["caller"]
+		require.NotEmpty(t, callerField, "caller field should be present")
+
+		// Verify format: should contain package/file:line
+		callerStr, ok := callerField.(string)
+		require.True(t, ok, "caller should be a string")
+		require.Contains(t, callerStr, "/", "caller should contain slash")
+		require.Contains(t, callerStr, ":", "caller should contain colon")
+		require.Contains(t, callerStr, "logger_test.go:", "caller should reference test file")
+	})
+
+	t.Run("custom_caller_mapper", func(t *testing.T) {
+		t.Parallel()
+
+		callerMapperCalled := false
+		customCallerMapper := func(frame stacktrace.Frame) fields.Field {
+			callerMapperCalled = true
+			return fields.F("custom-caller", "custom-value")
+		}
+
+		adapter, buff := bufferadapter.New()
+		lgr := logger.New(
+			adapter,
+			logger.WithCallerAtLevel(logger.LevelInfo),
+			logger.WithCallerMapper(customCallerMapper),
+		)
+
+		lgr.Info("test message")
+
+		assert.True(t, callerMapperCalled, "custom caller mapper should be called")
+
+		entries := buff.GetAll()
+		require.Len(t, entries, 1)
+		assert.Contains(t, entries[0].Fields, fields.F("custom-caller", "custom-value"))
+	})
+}
+
+func TestWithCallerAtLevel(t *testing.T) {
+	t.Parallel()
+
+	t.Run("caller_added_at_threshold_level", func(t *testing.T) {
+		t.Parallel()
+
+		adapter, buff := bufferadapter.New()
+		lgr := logger.New(adapter, logger.WithCallerAtLevel(logger.LevelWarning))
+
+		// Error (10) <= Warning (20) - should include caller
+		lgr.Error("error", nil)
+		// Warning (20) <= Warning (20) - should include caller
+		lgr.Warning("warning")
+		// Info (30) > Warning (20) - should NOT include caller
+		lgr.Info("info")
+
+		entries := buff.GetAll()
+		require.Len(t, entries, 3)
+
+		// Error entry should have caller
+		errorDict := entries[0].Fields.ToDict()
+		assert.NotEmpty(t, errorDict["caller"], "error should have caller")
+
+		// Warning entry should have caller
+		warningDict := entries[1].Fields.ToDict()
+		assert.NotEmpty(t, warningDict["caller"], "warning should have caller")
+
+		// Info entry should NOT have caller
+		infoDict := entries[2].Fields.ToDict()
+		assert.Empty(t, infoDict["caller"], "info should not have caller")
+	})
+
+	t.Run("disabled_by_default", func(t *testing.T) {
+		t.Parallel()
+
+		adapter, buff := bufferadapter.New()
+		lgr := logger.New(adapter) // No WithCallerAtLevel
+
+		lgr.Log(logger.LevelError, "error", nil)
+		lgr.Log(logger.LevelWarning, "warning", nil)
+
+		entries := buff.GetAll()
+		require.Len(t, entries, 2)
+
+		// Neither should have caller
+		for _, entry := range entries {
+			dict := entry.Fields.ToDict()
+			assert.Empty(t, dict["caller"], "caller should not be present by default")
+		}
+	})
+
+	t.Run("nop_logger_does_not_panic", func(t *testing.T) {
+		t.Parallel()
+
+		lgr := logger.NewNop()
+
+		require.NotPanics(t, func() {
+			lgr.Error("test", nil)
+		})
+	})
 }
