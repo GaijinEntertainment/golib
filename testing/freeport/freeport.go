@@ -12,28 +12,35 @@ import (
 // It maintains a registry of ports that are currently reserved by tests
 // and provides methods to get free ports or reserve ports exclusively.
 type resolver struct {
-	// reserved maps port numbers to the test that reserved them
-	reserved map[int]*testing.T
-	// reservedMu protects access to the reserved map
+	reserved   map[int]*testing.T
 	reservedMu sync.Mutex `exhaustruct:"optional"`
 
-	// resolverFn is the function used to find free ports for this protocol
-	resolverFn func() (int, error)
+	// resolverFn finds a free port and returns it along with a release
+	// function. The release function MUST be called to free the underlying
+	// resource (listener/connection) that holds the port. This design
+	// prevents race conditions where another probe could grab the same
+	// port between when it's discovered and when it's added to the map.
+	resolverFn func() (port int, release func(), err error)
 }
 
-func (r *resolver) getPort() (int, error) {
+func (r *resolver) findFreePort() (int, error) {
 	r.reservedMu.Lock()
 	defer r.reservedMu.Unlock()
 
 	for {
-		port, err := r.resolverFn()
+		port, release, err := r.resolverFn()
 		if err != nil {
 			return 0, e.NewFrom("failed to get free port", err)
 		}
 
-		if _, ok := r.reserved[port]; !ok {
-			return port, nil
+		if _, reserved := r.reserved[port]; reserved {
+			release()
+			continue
 		}
+
+		release()
+
+		return port, nil
 	}
 }
 
@@ -48,19 +55,22 @@ func (r *resolver) reservePort(t *testing.T) (int, error) { //nolint:thelper
 	defer r.reservedMu.Unlock()
 
 	for {
-		port, err := r.resolverFn()
+		port, release, err := r.resolverFn()
 		if err != nil {
 			return 0, e.NewFrom("failed to reserve free port", err)
 		}
 
-		if _, ok := r.reserved[port]; !ok {
-			r.reserved[port] = t
-			t.Cleanup(func() {
-				r.releasePort(t, port)
-			})
-
-			return port, nil
+		if _, reserved := r.reserved[port]; reserved {
+			release()
+			continue
 		}
+
+		r.reserved[port] = t
+		t.Cleanup(func() { r.releasePort(t, port) })
+
+		release()
+
+		return port, nil
 	}
 }
 
@@ -83,38 +93,42 @@ func (r *resolver) releasePort(t *testing.T, port int) bool { //nolint:thelper
 }
 
 var (
-	tcpResolv = &resolver{ //nolint:gochecknoglobals
+	tcpResolver = &resolver{ //nolint:gochecknoglobals
 		reserved: make(map[int]*testing.T),
-		resolverFn: func() (int, error) {
+		resolverFn: func() (int, func(), error) {
 			addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
 			if err != nil {
-				return 0, e.NewFrom("failed to resolve TCP address", err)
+				return 0, nil, e.NewFrom("failed to resolve TCP address", err)
 			}
 
 			listener, err := net.ListenTCP("tcp", addr)
 			if err != nil {
-				return 0, e.NewFrom("failed to listen on TCP port", err)
+				return 0, nil, e.NewFrom("failed to listen on TCP port", err)
 			}
-			defer func() { _ = listener.Close() }()
 
-			return listener.Addr().(*net.TCPAddr).Port, nil //nolint:forcetypeassert
+			port := listener.Addr().(*net.TCPAddr).Port //nolint:forcetypeassert
+			release := func() { _ = listener.Close() }
+
+			return port, release, nil
 		},
 	}
-	udpResolv = &resolver{ //nolint:gochecknoglobals
+	udpResolver = &resolver{ //nolint:gochecknoglobals
 		reserved: make(map[int]*testing.T),
-		resolverFn: func() (int, error) {
+		resolverFn: func() (int, func(), error) {
 			addr, err := net.ResolveUDPAddr("udp", "localhost:0")
 			if err != nil {
-				return 0, e.NewFrom("failed to resolve UDP address", err)
+				return 0, nil, e.NewFrom("failed to resolve UDP address", err)
 			}
 
 			conn, err := net.ListenUDP("udp", addr)
 			if err != nil {
-				return 0, e.NewFrom("failed to listen on UDP port", err)
+				return 0, nil, e.NewFrom("failed to listen on UDP port", err)
 			}
-			defer func() { _ = conn.Close() }()
 
-			return conn.LocalAddr().(*net.UDPAddr).Port, nil //nolint:forcetypeassert
+			port := conn.LocalAddr().(*net.UDPAddr).Port //nolint:forcetypeassert
+			release := func() { _ = conn.Close() }
+
+			return port, release, nil
 		},
 	}
 )
@@ -123,14 +137,14 @@ var (
 // This function does not reserve the port, so there's a small chance
 // another process could claim it before you use it.
 func TCP() (int, error) {
-	return tcpResolv.getPort()
+	return tcpResolver.findFreePort()
 }
 
 // UDP returns a free UDP port that is available for use.
 // This function does not reserve the port, so there's a small chance
 // another process could claim it before you use it.
 func UDP() (int, error) {
-	return udpResolv.getPort()
+	return udpResolver.findFreePort()
 }
 
 // ReserveTCP reserves a TCP port for exclusive use within the test.
@@ -141,7 +155,7 @@ func UDP() (int, error) {
 func ReserveTCP(t *testing.T) int {
 	t.Helper()
 
-	port, err := tcpResolv.reservePort(t)
+	port, err := tcpResolver.reservePort(t)
 	if err != nil {
 		t.Fatalf("ReserveTCP: %v", err)
 	}
@@ -157,7 +171,7 @@ func ReserveTCP(t *testing.T) int {
 func ReserveUDP(t *testing.T) int {
 	t.Helper()
 
-	port, err := udpResolv.reservePort(t)
+	port, err := udpResolver.reservePort(t)
 	if err != nil {
 		t.Fatalf("ReserveUDP: %v", err)
 	}
@@ -174,7 +188,7 @@ func ReserveUDP(t *testing.T) int {
 // Returns true if the port was released, false otherwise.
 func ReleaseTCP(t *testing.T, port int) bool {
 	t.Helper()
-	return tcpResolv.releasePort(t, port)
+	return tcpResolver.releasePort(t, port)
 }
 
 // ReleaseUDP manually releases a UDP port that was reserved for the test. This
@@ -186,5 +200,5 @@ func ReleaseTCP(t *testing.T, port int) bool {
 // Returns true if the port was released, false otherwise.
 func ReleaseUDP(t *testing.T, port int) bool {
 	t.Helper()
-	return udpResolv.releasePort(t, port)
+	return udpResolver.releasePort(t, port)
 }

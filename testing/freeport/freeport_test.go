@@ -20,7 +20,6 @@ func TestGet(t *testing.T) {
 		require.NoError(t, err)
 		require.Positive(t, p)
 
-		// Verify we can listen on the port
 		l, err := net.ListenTCP("tcp", &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: p, Zone: ""})
 		require.NoError(t, err)
 		require.NotNil(t, l)
@@ -36,7 +35,6 @@ func TestGet(t *testing.T) {
 		require.NoError(t, err)
 		require.Positive(t, p)
 
-		// Verify we can bind UDP to the port
 		c, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.ParseIP("127.0.0.1"), Port: p, Zone: ""})
 		require.NoError(t, err)
 		require.NotNil(t, c)
