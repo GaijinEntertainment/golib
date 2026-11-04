@@ -21,3 +21,22 @@ func ExampleSize_SI() {
 	// 1.54kB
 	// 256kB
 }
+
+func ExampleParse() {
+	for _, text := range []string{"1536", "1.5 KiB", "256kB", "1XB"} {
+		size, err := bytesize.Parse(text)
+		if err != nil {
+			fmt.Println(err)
+
+			continue
+		}
+
+		fmt.Println(int64(size))
+	}
+
+	// Output:
+	// 1536
+	// 1536
+	// 256000
+	// invalid byte size (text=1XB)
+}
