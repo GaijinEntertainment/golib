@@ -96,6 +96,10 @@ func (s *Digest) Sum(b []byte) []byte {
 }
 
 func (s *Digest) Sign(signer Signer) (Signature, error) {
+	if s.Ver < V2 || s.Ver > V4 {
+		return nil, ErrorUnsupportedSignatureVersion
+	}
+
 	signature, err := signer.Sign(s.Sum(nil))
 	if err != nil {
 		return nil, fmt.Errorf("sign failed: %w", err)

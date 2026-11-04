@@ -275,6 +275,63 @@ func TestDigest_Sign(t *testing.T) {
 	assert.NoError(t, rsa.VerifyPKCS1v15(&key.PublicKey, crypto.SHA256, digest.Sum(nil), s2.Data()))
 }
 
+type stubSigner struct{}
+
+func (stubSigner) Sign([]byte) (sign.Signature, error) {
+	return sign.Signature("signature"), nil
+}
+
+func TestDigest_SignSupportedVersion(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		give sign.Version
+	}{
+		{name: "V2", give: sign.V2},
+		{name: "V3", give: sign.V3},
+		{name: "V4", give: sign.V4},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			digest := sign.NewDigest(tt.give, time.Now())
+
+			signature, err := digest.Sign(stubSigner{})
+			assert.NoError(t, err)
+			assert.Equal(t, tt.give, signature.Ver())
+		})
+	}
+}
+
+func TestDigest_SignUnsupportedVersion(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		give sign.Version
+	}{
+		{name: "below V2", give: sign.V2 - 1},
+		{name: "above V4", give: sign.V4 + 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			digest := sign.NewDigest(sign.V4, time.Now())
+
+			digest.Ver = tt.give
+
+			signature, err := digest.Sign(nil)
+			assert.ErrorIs(t, err, sign.ErrorUnsupportedSignatureVersion)
+			assert.Nil(t, signature)
+		})
+	}
+}
+
 func createSign(moment time.Time) sign.Signature {
 	s := sign.NewDigest(sign.V4, moment)
 
