@@ -23,7 +23,7 @@ jobs:
     steps:
       - uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.go }}
+          go-version: ${{ matrix.go-version }}
           check-latest: true
       - uses: actions/checkout@v4
       - name: "Lint"
