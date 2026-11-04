@@ -10,6 +10,10 @@ disabled_master_tests = [
     'failed_parent_commits',
 ]
 
+disabled_verification_checks = [
+    'tabs_in_diff',  # vendored third-party code is indented with tabs
+]
+
 tests_configs = [
     {
         'id': 'golang-tests',
