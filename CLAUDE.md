@@ -7,7 +7,8 @@ file carries no internal hostname, internal service name, or local path.
 <placement>
 
 - A logging backend binds to `logger` in its own `logger/<backend>adapter` package.
-- A new general-purpose package gets its own top-level directory, named for what it provides.
+- A package for a unit of measure goes in `units/`, named for the quantity it measures, such as `units/bytesize`.
+- Any other new general-purpose package gets its own top-level directory, named for what it provides.
 
 </placement>
 
