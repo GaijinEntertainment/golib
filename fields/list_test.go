@@ -51,6 +51,7 @@ func TestList(t *testing.T) {
 		}
 
 		var seen []string
+
 		for k := range l.All() {
 			seen = append(seen, k)
 			break // stop after first

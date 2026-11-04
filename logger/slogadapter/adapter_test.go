@@ -31,8 +31,8 @@ func (b *entriesBuffer) Reset() {
 
 type bufferHandler struct {
 	buf   *entriesBuffer
-	attrs []slog.Attr
-	group string
+	attrs []slog.Attr //exhaustruct:optional
+	group string      //exhaustruct:optional
 }
 
 func (*bufferHandler) Enabled(_ context.Context, _ slog.Level) bool {
@@ -79,7 +79,7 @@ func (h *bufferHandler) WithGroup(name string) slog.Handler {
 }
 
 func newAdapter(buf *entriesBuffer, opts ...slogadapter.Option) *slogadapter.Adapter {
-	return slogadapter.New(slog.New(&bufferHandler{buf: buf}), opts...) //nolint:exhaustruct
+	return slogadapter.New(slog.New(&bufferHandler{buf: buf}), opts...)
 }
 
 const errorKey = "error"

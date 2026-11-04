@@ -44,7 +44,7 @@ func DefaultLogLevelMapper(level int) logrus.Level {
 type Adapter struct {
 	lgr *logrus.Entry
 
-	lvlMapper LogLevelMapper `exhaustruct:"optional"`
+	lvlMapper LogLevelMapper //exhaustruct:optional
 }
 
 // New creates new logging adapter using provided [logrus.Entry].

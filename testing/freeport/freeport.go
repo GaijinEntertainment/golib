@@ -13,7 +13,7 @@ import (
 // and provides methods to get free ports or reserve ports exclusively.
 type resolver struct {
 	reserved   map[int]*testing.T
-	reservedMu sync.Mutex `exhaustruct:"optional"`
+	reservedMu sync.Mutex //exhaustruct:optional
 
 	// resolverFn finds a free port and returns it along with a release
 	// function. The release function MUST be called to free the underlying

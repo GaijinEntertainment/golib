@@ -11,14 +11,14 @@ import (
 type LogEntry struct {
 	Level  int
 	Msg    string
-	Fields fields.List `exhaustruct:"optional"`
+	Fields fields.List //exhaustruct:optional
 }
 
 // LogEntries is a buffer for storing log entries in memory. It is safe for
 // concurrent use.
 type LogEntries struct {
-	mu      sync.RWMutex `exhaustruct:"optional"`
-	entries []LogEntry   `exhaustruct:"optional"`
+	mu      sync.RWMutex //exhaustruct:optional
+	entries []LogEntry   //exhaustruct:optional
 }
 
 // Add appends a log entry.
@@ -41,6 +41,7 @@ func (le *LogEntries) Reset() {
 func (le *LogEntries) Len() int {
 	le.mu.RLock()
 	defer le.mu.RUnlock()
+
 	return len(le.entries)
 }
 
@@ -49,6 +50,7 @@ func (le *LogEntries) Len() int {
 func (le *LogEntries) Get(i int) LogEntry {
 	le.mu.RLock()
 	defer le.mu.RUnlock()
+
 	return le.entries[i]
 }
 
@@ -56,14 +58,15 @@ func (le *LogEntries) Get(i int) LogEntry {
 func (le *LogEntries) GetAll() []LogEntry {
 	le.mu.RLock()
 	defer le.mu.RUnlock()
+
 	return slices.Clone(le.entries)
 }
 
 // Adapter is a logger.Adapter implementation that writes logs to the provided
 // [LogEntries] collection.
 type Adapter struct {
-	buff *LogEntries `exhaustruct:"optional"`
-	fs   fields.List `exhaustruct:"optional"`
+	buff *LogEntries //exhaustruct:optional
+	fs   fields.List //exhaustruct:optional
 }
 
 // New creates a new [Adapter] instance along with a new [LogEntries] buffer that

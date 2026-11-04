@@ -1,4 +1,4 @@
-###golangci-lint:version: 2.6
+###golangci-lint:version: 2.15
 version: "2"
 run:
   modules-download-mode: readonly
@@ -31,6 +31,8 @@ linters:
     - sloglint
     - noinlineerr # because that's a stupid rule
     - wsl # replaced by wsl_v5
+    - exhaustruct # replaced by exhaustruct_v5
+    - gomodguard # replaced by gomodguard_v2
   settings:
     lll:
       line-length: 120
@@ -54,8 +56,9 @@ linters:
         - (*strings.Builder).WriteRune
         - (*strings.Builder).WriteString
         - (*os.File).Close
-    exhaustruct:
-      exclude:
+    exhaustruct_v5:
+      allow-empty-returns: true
+      ignore-patterns:
         - net/http\.Transport
         - net/http\.Server
         - net/http\.Client
@@ -238,19 +241,22 @@ linters:
         - ProcessSetupDone
         - ReadInConfig
         - google\.golang\.org/grpc/status\.Error.*\(
+        - dev\.gaijin\.team/go/golib/e\.(New|NewFrom|From|Err\)\.WithFields?)\(
     wsl_v5:
       default: all
       branch-max-lines: 4
       case-max-lines: 2
       allow-whole-block: true
       allow-first-in-block: true
-
+      disable:
+        - after-expr
 
   exclusions:
     rules:
       - path: "_test\\.go"
         linters:
           - funlen
+          - goconst
     paths:
       - vendor/.* # ignore vendor
       - .*\.gen\.go$ # ignore generated files

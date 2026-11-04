@@ -47,7 +47,7 @@ func DefaultLogLevelMapper(level int) zapcore.Level {
 type Adapter struct {
 	lgr *zap.Logger
 
-	lvlMapper LogLevelMapper `exhaustruct:"optional"`
+	lvlMapper LogLevelMapper //exhaustruct:optional
 }
 
 // New creates new logging adapter using provided [zap.Logger].

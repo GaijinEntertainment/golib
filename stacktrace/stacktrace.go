@@ -140,7 +140,7 @@ func CaptureCaller(skip int) Frame {
 	n := runtime.Callers(skip, pcs[:])
 
 	if n == 0 {
-		return Frame{} //nolint:exhaustruct
+		return Frame{}
 	}
 
 	runtimeFrame, _ := runtime.CallersFrames(pcs[:n]).Next()
@@ -156,6 +156,7 @@ func CaptureStack(skip, depth int) *Stack {
 	skip++ // we don't want current function to get to trace
 
 	var pcs []uintptr
+
 	if depth == math.MaxInt {
 		pcs = callersFull(skip)
 	} else {

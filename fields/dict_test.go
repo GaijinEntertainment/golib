@@ -50,6 +50,7 @@ func TestDict(t *testing.T) {
 		d := fields.Dict{"foo": "bar", "baz": "qux"}
 
 		var seen []string
+
 		for k := range d.All() {
 			seen = append(seen, k)
 			break // stop after first

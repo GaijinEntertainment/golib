@@ -251,6 +251,7 @@ func TestErrorMapperInLogging(t *testing.T) {
 		lgr := logger.New(adapter)
 
 		var err error = (*errWithValueReceiver)(nil)
+
 		lgr.Error("test message", err)
 
 		entries := buff.GetAll()
@@ -554,6 +555,7 @@ func TestLogger_IsEqual(t *testing.T) {
 		if prev == "" {
 			return next
 		}
+
 		return prev + "/" + next
 	}
 

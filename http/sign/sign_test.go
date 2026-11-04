@@ -158,7 +158,7 @@ func TestEqual(t *testing.T) {
 }
 
 func bs(v sign.Version, ts uint64, body string) sign.Signature {
-	return append(binary.BigEndian.AppendUint64([]byte{byte(v)}, ts), []byte(body)...)
+	return append(binary.BigEndian.AppendUint64([]byte{byte(v)}, ts), []byte(body)...) //nolint:gosec // V2..V4 < 256.
 }
 
 func TestParseSignature(t *testing.T) {
