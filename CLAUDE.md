@@ -20,7 +20,7 @@ file carries no internal hostname, internal service name, or local path.
 - GitHub Actions test on the two newest Go releases, on Linux, macOS, and Windows (`.github/workflows/ci.yml`).
 - `vendor/` is committed. After a change of `go.mod`, run `go mod tidy && go mod vendor`.
 - Lint with the golangci-lint version in the `###golangci-lint:version:` comment atop `.golangci.yaml`. The review CI
-  runs that version.
+  runs that version. Change it together with the `version` input of the lint step in `.github/workflows/ci.yml`.
 
 </toolchain>
 
