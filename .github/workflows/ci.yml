@@ -9,6 +9,9 @@ on:
       - master
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   lint:
     name: "Lint"
@@ -21,17 +24,18 @@ jobs:
       pull-requests: read
       contents: read
     steps:
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ matrix.go-version }}
           check-latest: true
-      - uses: actions/checkout@v4
       - name: "Lint"
-        uses: golangci/golangci-lint-action@v8
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
           only-new-issues: true
           args: --timeout 5m --issues-exit-code 0
-
 
   test:
     name: "Test"
@@ -41,8 +45,10 @@ jobs:
         os: [ "ubuntu-latest", "windows-latest", "macos-latest" ]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ matrix.go-version }}
           check-latest: true
@@ -50,6 +56,6 @@ jobs:
         run: go test -json ./... > test.json
       - name: "Annotate tests"
         if: always()
-        uses: guyarb/golang-test-annotations@v0.8.0
+        uses: guyarb/golang-test-annotations@96fc379b171c49932041d6c789e73331a7bdeec1 # v0.9.0
         with:
           test-results: test.json
