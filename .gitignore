@@ -2,3 +2,6 @@
 .vscode/
 development.env
 *.exe
+
+# Claude Code local overrides
+.claude/settings.local.json
