@@ -1,6 +1,7 @@
 package bytesize_test
 
 import (
+	"encoding/json"
 	"math"
 	"testing"
 
@@ -80,6 +81,76 @@ func TestParse(t *testing.T) {
 
 				_, err := bytesize.Parse(tt.give)
 				require.ErrorIs(t, err, tt.wantErr)
+			})
+		}
+	})
+}
+
+func Test_Size_Unmarshal(t *testing.T) {
+	t.Parallel()
+
+	t.Run("UnmarshalText", func(t *testing.T) {
+		t.Parallel()
+
+		var size bytesize.Size
+
+		require.NoError(t, size.UnmarshalText([]byte("1.5KiB")))
+		assert.Equal(t, bytesize.Size(1536), size)
+		require.ErrorIs(t, size.UnmarshalText([]byte("1XB")), bytesize.ErrSyntax)
+	})
+
+	t.Run("UnmarshalJSON accepts", func(t *testing.T) {
+		t.Parallel()
+
+		tests := []struct {
+			name string
+			give string
+			want bytesize.Size
+		}{
+			{name: "number", give: `{"size": 1536}`, want: 1536},
+			{name: "string", give: `{"size": "1.5KiB"}`, want: 1536},
+			{name: "string with an escape", give: `{"size": "1.5\u004biB"}`, want: 1536},
+			{name: "null leaves the size", give: `{"size": null}`, want: 7},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
+
+				got := struct {
+					Size bytesize.Size `json:"size"`
+				}{Size: 7}
+
+				require.NoError(t, json.Unmarshal([]byte(tt.give), &got))
+				assert.Equal(t, tt.want, got.Size)
+			})
+		}
+	})
+
+	t.Run("UnmarshalJSON rejects", func(t *testing.T) {
+		t.Parallel()
+
+		tests := []struct {
+			name    string
+			give    string
+			wantErr error
+		}{
+			{name: "unknown unit", give: `{"size": "1XB"}`, wantErr: bytesize.ErrSyntax},
+			{name: "number with an exponent", give: `{"size": 1e3}`, wantErr: bytesize.ErrSyntax},
+			{name: "boolean", give: `{"size": true}`, wantErr: bytesize.ErrSyntax},
+			{name: "string null", give: `{"size": "null"}`, wantErr: bytesize.ErrSyntax},
+			{name: "number beyond the largest size", give: `{"size": 9223372036854775808}`, wantErr: bytesize.ErrRange},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
+
+				var got struct {
+					Size bytesize.Size `json:"size"`
+				}
+
+				require.ErrorIs(t, json.Unmarshal([]byte(tt.give), &got), tt.wantErr)
 			})
 		}
 	})

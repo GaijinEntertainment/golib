@@ -1,6 +1,7 @@
 package bytesize
 
 import (
+	"encoding/json"
 	"math/big"
 	"regexp"
 	"strconv"
@@ -47,6 +48,36 @@ func Parse(text string) (Size, error) {
 	}
 
 	return Size(size), nil
+}
+
+// UnmarshalText sets s from text that [Parse] accepts.
+func (s *Size) UnmarshalText(text []byte) error {
+	size, err := Parse(string(text))
+	if err != nil {
+		return err
+	}
+
+	*s = size
+
+	return nil
+}
+
+// UnmarshalJSON sets s from a JSON string or a JSON number, each read as [Parse] text. Its error matches [ErrSyntax]
+// for the number 1e3 and for a JSON value of another type. A JSON null leaves s unchanged.
+func (s *Size) UnmarshalJSON(data []byte) error {
+	if string(data) == "null" {
+		return nil
+	}
+
+	text := string(data)
+
+	if strings.HasPrefix(text, `"`) {
+		if err := json.Unmarshal(data, &text); err != nil {
+			return e.NewFrom("decode byte size", err)
+		}
+	}
+
+	return s.UnmarshalText([]byte(text))
 }
 
 func lookupUnit(symbol string) (int64, bool) {
