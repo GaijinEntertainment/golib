@@ -11,7 +11,7 @@ disabled_master_tests = [
 ]
 
 disabled_verification_checks = [
-    'tabs_in_diff',  # vendored third-party code is indented with tabs
+    'tabs_in_diff',  # Go formatting indents with tabs
 ]
 
 tests_configs = [
