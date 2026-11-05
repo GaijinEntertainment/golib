@@ -1,0 +1,11 @@
+[global]
+line-length = 120
+exclude = ["vendor"]
+
+[per-file-ignores]
+"CLAUDE.md" = ["MD033"]
+".claude/**/*.md" = ["MD033", "MD041"]
+"README.md" = ["MD033", "MD041"]
+
+[MD013]
+reflow = true

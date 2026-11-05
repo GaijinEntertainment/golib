@@ -60,3 +60,15 @@ jobs:
         uses: guyarb/golang-test-annotations@96fc379b171c49932041d6c789e73331a7bdeec1 # v0.9.0
         with:
           test-results: test.json
+
+  markdown:
+    name: "Markdown"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: rvben/rumdl@1e0f1d13c87418c31e0d59dacddd98f27a02efcc # v0.3.2
+        with:
+          version: "0.3.0"
+          report-type: annotations
